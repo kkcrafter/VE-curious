@@ -24,6 +24,7 @@ async def lifespan(app):
 
 app = FastAPI(title="Ve-curious backend", lifespan=lifespan)
 api = APIRouter(prefix="/api")
+dev = APIRouter(prefix="/api/dev")
 
 
 @app.exception_handler(ApiError)
@@ -142,4 +143,67 @@ def charging(body: ChargingIn, r=Depends(own_reservation)):
     return reservation_json(core.apply(r["id"], f"{body.action}_charging"))
 
 
+# ---- dev controls (mock adapter only) ----
+
+class PlateIn(BaseModel):
+    bayId: str
+    plate: str
+
+
+class PresenceIn(BaseModel):
+    bayId: str
+    occupied: bool
+
+
+class CameraIn(BaseModel):
+    bayId: str
+    online: bool
+
+
+class FailIn(BaseModel):
+    call: Literal["reserve", "release", "unlock"]
+
+
+def mock_lock(bay_id):
+    return core.adapter.locks[get_bay(bay_id)["lock_id"]]
+
+
+@dev.post("/plate")
+def dev_plate(body: PlateIn):
+    lock_id = get_bay(body.bayId)["lock_id"]
+    if core.adapter.locks[lock_id]["online"]:  # a blind camera sees nothing
+        core.on_hardware_event({"kind": "plate", "lock_id": lock_id, "plate": body.plate})
+    return {"ok": True}
+
+
+@dev.post("/presence")
+def dev_presence(body: PresenceIn):
+    lock = mock_lock(body.bayId)
+    lock["occupied"] = body.occupied
+    if lock["online"]:
+        core.on_hardware_event({"kind": "presence", "lock_id": get_bay(body.bayId)["lock_id"], "occupied": body.occupied})
+    return {"ok": True}
+
+
+@dev.post("/camera")
+def dev_camera(body: CameraIn):
+    mock_lock(body.bayId)["online"] = body.online
+    return {"ok": True}
+
+
+@dev.post("/fail-next")
+def dev_fail_next(body: FailIn):
+    core.adapter.fail_next.add(body.call)
+    return {"ok": True}
+
+
+@dev.post("/reset")
+def dev_reset():
+    db.reset()
+    core.adapter.reset()
+    return {"ok": True}
+
+
 app.include_router(api)
+if config.ADAPTER == "mock":
+    app.include_router(dev)
