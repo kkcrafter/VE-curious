@@ -12,5 +12,8 @@ Challenge: integrate a smart reservation system for public EV charging into a ch
 - `docs/submission-deliverables.md` – what to submit in the form, ranked; minimum deployment
 - `docs/backlog.md` – starter cards for the task board, grouped by gate
 - `docs/resources.md` – external toolkits and standards worth reading
-- `docs/design/` – draft state machine, diagrams, app outline, stack options, test scenarios (proposals)
+- `docs/design/` – design drafts (proposals):
+  - [Architecture + data flow diagrams](docs/design/diagrams.md) – components, data flows, reservation states, full-cycle sequence, plate event handling
+  - [App outline + wireframes](docs/design/app-outline.md) – domains, screen flow, wireframe images
+  - [State machine](docs/design/state-machine.md), [stack options](docs/design/stack-options.md), [test scenarios](docs/design/test-scenarios.md), [GoingElectric API](docs/design/goingelectric.md)
 - `docs/templates/` – documentation, decision log, declaration log, pitch outline
