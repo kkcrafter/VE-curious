@@ -11,6 +11,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, FastAPI, Header, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import config, core, db, hardware_events, machine
@@ -162,6 +163,17 @@ def operator_events(limit: int = Query(100, ge=1, le=500)):
         {"ts": r["ts"], "reservationId": r["reservation_id"], "bayId": r["bay_id"], "kind": r["kind"], "payload": json.loads(r["payload"])}
         for r in rs
     ]
+
+
+FRONTEND = Path(__file__).parents[2] / "frontend"
+
+
+@app.get("/", include_in_schema=False)
+def frontend():
+    return FileResponse(FRONTEND / "index.html")
+
+
+app.mount("/static", StaticFiles(directory=FRONTEND), name="static")
 
 
 @app.get("/test", include_in_schema=False)
