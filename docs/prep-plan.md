@@ -53,9 +53,9 @@ Ask at the mentor slots (10:15 or 11:00) or the organiser before the event.
 | # | Gap | Who answers | Effect if unanswered |
 |---|---|---|---|
 | C1 | May we bring code or designs made before the event? | Organiser – **ask before event** | A2/A3 stay documents, not code |
-| C2 | Ecurious API: protocol, auth, endpoints, push or poll for events, response times | Ecurious | Real adapter cannot be built |
+| C2 | Ecurious API: protocol, auth, endpoints, push or poll for events, response times | Ecurious | **Mostly answered 2026-10-24:** REST + SSE push + MCP, team API key, our lock `lock-0001`; see state-machine.md "Ecurious parking-lock API". Still open: response times, auto-lift timeout, placeholder telemetry values |
 | C3 | How is the "charge" step started or observed? Server or charger? | Ecurious | Cycle cannot complete |
-| C4 | Which plate events exist: unknown plate, blocked bay, vehicle leaves? | Ecurious | Blocked-bay and mismatch logic unconfirmed |
+| C4 | Which plate events exist: unknown plate, blocked bay, vehicle leaves? | Ecurious | **Answered 2026-10-24:** SSE `photo_captured` (any plate, we compare), `vehicle_presence` occupied / vacant (arrive / leave). No "blocked" event: we derive it. No confidence field. Combustion vs EV not detectable |
 | C5 | How to test plate recognition: real car, printed test plate? | Ecurious | Check-in demo at risk |
 | C6 | Is the test bay shared between teams? Time slots? | Ecurious / organiser | More work against the mock; book hardware time |
 | C7 | Does plate recognition count as a separate mission area? | Ecurious mentor | Changes B3 |
@@ -63,7 +63,7 @@ Ask at the mentor slots (10:15 or 11:00) or the organiser before the event.
 | C9 | Is the Ecurious server reachable from venue network? Do we need a public URL (webhooks)? | Ecurious / organiser | Hosting choice (B1), tunnel needed |
 | C10 | What exactly to submit at 18:00, and format | Organiser | Docs and slides planning |
 | C11 | Can we test a blocked bay on the test bay? How? | Ecurious | Blocked-bay demo at risk |
-| C12 | Camera health: does the hardware report a heartbeat / last-seen or its own health? Do we get raw frames or only plate events? May we cover the lens to test? | Ecurious | Camera-failure detection limited to our own timeout; S11 demo at risk |
+| C12 | Camera health: does the hardware report a heartbeat / last-seen or its own health? Do we get raw frames or only plate events? May we cover the lens to test? | Ecurious | **Partly answered 2026-10-24:** `lastSeenAt` heartbeat, `activeErrors`, SSE `alarm`; plate events only, no raw frames. Still open: may we cover the lens to test (S11)? Does a blind camera raise an error or just go silent? |
 | C13 | Does Ecurious have a back office / CRM with an API for operator tickets (escalations, faults, disputes)? In scope and accessible for us? | Ecurious | Operator events stay in our own outbox + generic webhook; CRM link pitch only |
 
 ---

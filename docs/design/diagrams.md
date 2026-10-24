@@ -39,9 +39,9 @@ flowchart LR
     appB["App B / partner<br/>[TEAM B8]"]:::team
 
     subgraph ecu["Ecurious – CPO side"]
-        server["Ecurious server<br/>protocol, auth, endpoints [GAP C2]"]:::gap
+        server["Ecurious parking-lock service<br/>REST + SSE + MCP, team API key"]
         hw["Reservation hardware<br/>test bay (shared? [GAP C6])"]:::gap
-        cam["Camera<br/>plate recognition, health [GAP C12]"]:::gap
+        cam["Camera<br/>plate recognition; heartbeat via lastSeenAt,<br/>no raw frames; lens test? [GAP C12]"]:::gap
         charger["Charger<br/>start / observe charging [GAP C3]"]:::gap
     end
 
@@ -56,7 +56,7 @@ flowchart LR
     core --> adapter
     core -. "switch" .-> mock
     adapter -- "venue network reachable? [GAP C9]" --> server
-    server -. "plate events: push or poll? [GAP C2]" .-> adapter
+    server -. "SSE push: photo_captured,<br/>vehicle_presence, status_change, alarm" .-> adapter
     server --> hw
     hw --- cam
     server -. "?" .-> charger
@@ -107,9 +107,9 @@ flowchart LR
     be --- resv
     be --- log
 
-    be -- "reserve(bayId, reservationId, plate?, until)<br/>does Ecurious need the plate? [GAP C2]" --> ecu
-    ecu -- "plate events: plate or null, confidence?<br/>which events exist? [GAP C4]" --> be
-    ecu -- "status: occupied, plate?, lastSeen [GAP C12]" --> be
+    be -- "lock / unlock arm (lockId only);<br/>whitelist empty [TEAM]" --> ecu
+    ecu -- "photo_captured: plate (no confidence);<br/>vehicle_presence: occupied / vacant" --> be
+    ecu -- "status: carPresence, arm, lastSeenAt, activeErrors" --> be
     ecu -. "charging started / stopped [GAP C3]" .-> be
 
     be -. "webhook: reservation ID, bay, state, time<br/>no plate, no GoingElectric data" .-> partner
@@ -119,7 +119,7 @@ flowchart LR
 GDPR points on this flow (values = decision B6, see `../templates/documentation.md` §8):
 
 - Plates of non-customers arrive in plate events. Decide what we keep: nothing, match result only, or hashed plate (hash = pseudonymised, not anonymous).
-- Plate leaves our system only if Ecurious needs it for `reserve` [GAP C2].
+- Plate never needs to leave our system: we keep the hardware whitelist empty and unlock after our own match [TEAM]. Plates of everyone the camera sees still arrive in `photo_captured`.
 - No personal data goes to GoingElectric; no GoingElectric data goes out through our API (terms).
 - Location / GPS: only if we build ETA-based no-show detection [TEAM B4].
 - Webhooks [PROPOSAL] carry reservation ID and state only; KPI aggregates hold counts, no personal data.
@@ -135,7 +135,7 @@ stateDiagram-v2
     REQUESTED --> FAILED: error / timeout
     REQUESTED --> BLOCKED: bay occupied
 
-    RESERVED --> ARRIVED: plate = booked [GAP C4]
+    RESERVED --> ARRIVED: plate = booked
     RESERVED --> PLATE_MISMATCH: plate ≠ booked
     RESERVED --> NO_SHOW: grace timer expires [TEAM B4]
     RESERVED --> CANCELLED: driver cancels
@@ -144,7 +144,7 @@ stateDiagram-v2
     PLATE_MISMATCH --> ARRIVED: driver confirms (code / QR / button) [TEAM B6]
     PLATE_MISMATCH --> BLOCKED: denies / no answer
 
-    BLOCKED --> RESERVED: vehicle leaves [GAP C4] [TEAM B5]
+    BLOCKED --> RESERVED: vehicle leaves (vacant) [TEAM B5]
     BLOCKED --> CANCELLED: reroute / cancel
     BLOCKED --> BLOCKED: escalate after N min [TEAM B5]
 
@@ -180,7 +180,7 @@ sequenceDiagram
     participant A as Driver app
     participant G as GoingElectric
     participant B as Our backend
-    participant E as Ecurious server [GAP C2]
+    participant E as Ecurious lock service
     participant H as Bay hardware + camera
 
     D->>A: open map
@@ -190,18 +190,18 @@ sequenceDiagram
     Note over A,B: How is the test bay linked to a GoingElectric ge_id? [GAP C8 Q4]
     A->>B: POST reservation (bay, plate)
     B->>B: check bay not out_of_service, state REQUESTED, log
-    B->>E: reserve(bayId, reservationId, plate, until)
-    E->>H: hold bay
-    E-->>B: ok
+    B->>E: POST /locks/lock-0001/lock
+    E->>H: raise arm
+    E-->>B: ok (+ SSE status_change raised)
     B->>B: RESERVED, store grace deadline [TEAM B4]
     B-->>A: reserved, countdown
 
     Note over D,H: driver drives to site (reminder before grace ends [TEAM B4])
 
     H->>E: plate read
-    E-->>B: plate event (push or poll? [GAP C2], event types [GAP C4])
+    E-->>B: SSE photo_captured (licensePlate)
     B->>B: plate = booked: ARRIVED, stop timer, log
-    B->>E: open barrier / release hold? [GAP C2]
+    B->>E: POST /locks/lock-0001/unlock
     B-->>A: "checked in"
 
     D->>H: plug in
@@ -226,7 +226,7 @@ flowchart TD
     classDef gap stroke:#d33,stroke-width:2px,stroke-dasharray:5 4
     classDef team fill:#ffe3bf,stroke:#e8890c
 
-    ev["Plate event (bayId, plate or null, confidence?)<br/>[GAP C4]"]:::gap
+    ev["SSE photo_captured (lockId, licensePlate)<br/>no confidence field"]
     ev --> read{"Plate read?"}
     read -- "no / low confidence [GAP C5]" --> mis
     read -- "yes" --> match{"= booked plate?"}
@@ -249,7 +249,7 @@ Not yet discussed with the team. Each is small and fits the backend we already p
 | Proposal | What it does | Why | Diagram |
 |---|---|---|---|
 | Timer sweep | Store `grace_deadline` in the DB; a periodic job moves expired reservations to `NO_SHOW` | In-memory timers vanish on restart and leave bays held forever | 1 |
-| Reconciliation loop | Every N s, compare our state with `status(bayId)`; log mismatches, alert operator | Hardware is source of truth; catches missed plate events [GAP C2 push/poll] | 1 |
+| Reconciliation loop | Every N s, compare our state with `status(bayId)`; log mismatches, alert operator | Hardware is source of truth; catches events missed while the SSE stream was down | 1 |
 | Partner webhooks | Push `reservation.reserved`, `reservation.no_show`, `bay.blocked` to a partner URL (or webhook.site in the demo) | Live interoperability proof for B8 without building a second app | 1, 2 |
 | KPI read model | Build utilisation, no-show rate, blocked minutes from the event log | Utilisation and Business Case answers with real numbers from the demo | 1, 2 |
 
@@ -257,14 +257,14 @@ Not yet discussed with the team. Each is small and fits the backend we already p
 
 | Tag | Where it appears | What changes when answered |
 |---|---|---|
-| C2 Ecurious API | 1, 2, 4 | Real adapter, push vs poll, barrier call, whether plate is sent on `reserve` |
+| C2 Ecurious API | – | Mostly answered 2026-10-24 (see state-machine.md); open: response times, auto-lift timeout |
 | C3 Charge step | 1, 2, 3, 4, 5 | `ARRIVED → CHARGING` trigger; blocked sub-case detection |
-| C4 Plate events | 2, 3, 4, 5 | Mismatch, blocked, "vehicle leaves" transitions |
+| C4 Plate events | – | Answered 2026-10-24: `photo_captured`, `vehicle_presence`; "blocked" derived by us |
 | C5 Plate testing | 5 | Low-confidence branch, S8 demo |
 | C6 Shared test bay | 1 | Hardware time slots, more work on mock |
 | C8 GoingElectric | 1, 4 | Web vs mobile (B1), key in client, bay ↔ `ge_id` mapping |
 | C9 Venue network | 1 | Hosting, tunnel for webhooks |
-| C12 Camera health | 1, 2, 3 | `UNVERIFIED` trigger beyond our own timeout |
+| C12 Camera health | 1, 3 | Partly answered: `lastSeenAt`, `activeErrors`, `alarm`; open: lens-cover test, does a blind camera report an error |
 | B1 Stack | 1 | App type, component technology column in docs |
 | B4 No-show rules | 2, 3, 4 | Grace deadline, reminder, fee |
 | B5 Blocked policy | 1, 3, 5 | Escalation, operator view |
