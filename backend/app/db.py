@@ -14,6 +14,7 @@ conn = sqlite3.connect(config.DB_PATH, check_same_thread=False)
 conn.row_factory = sqlite3.Row
 
 _active = "state NOT IN ({})".format(", ".join(f"'{s}'" for s in machine.TERMINAL))
+_held = f"{_active} AND state != 'SCHEDULED'"  # hardware holds (or a car uses) the bay right now
 
 SCHEMA = f"""
 CREATE TABLE IF NOT EXISTS drivers (
@@ -46,6 +47,8 @@ CREATE TABLE IF NOT EXISTS reservations (
   previous_state TEXT,
   blocked_reason TEXT,
   fault_reason TEXT,
+  slot_start TEXT,
+  fee_cents INTEGER,
   grace_deadline TEXT,
   reminder_at TEXT,
   mismatch_deadline TEXT,
@@ -54,7 +57,8 @@ CREATE TABLE IF NOT EXISTS reservations (
   updated_at TEXT NOT NULL,
   UNIQUE (driver_id, idempotency_key)
 );
-CREATE UNIQUE INDEX IF NOT EXISTS one_active_per_bay ON reservations(bay_id) WHERE {_active};
+DROP INDEX IF EXISTS one_active_per_bay;
+CREATE UNIQUE INDEX IF NOT EXISTS one_held_per_bay ON reservations(bay_id) WHERE {_held};
 CREATE UNIQUE INDEX IF NOT EXISTS one_active_per_driver ON reservations(driver_id) WHERE {_active};
 CREATE TABLE IF NOT EXISTS event_log (
   id INTEGER PRIMARY KEY,
@@ -100,6 +104,8 @@ def parse(ts):
 def init():
     if one("SELECT 1 FROM sqlite_master WHERE name = 'drivers'") and not one("SELECT 1 FROM pragma_table_info('drivers') WHERE name = 'email'"):
         raise SystemExit(f"{config.DB_PATH} predates login (no drivers.email): delete it and restart")
+    if one("SELECT 1 FROM sqlite_master WHERE name = 'reservations'") and not one("SELECT 1 FROM pragma_table_info('reservations') WHERE name = 'slot_start'"):
+        raise SystemExit(f"{config.DB_PATH} predates time slots (no reservations.slot_start): delete it and restart")
     with conn:
         conn.executescript(SCHEMA)
         conn.executemany("INSERT OR IGNORE INTO drivers VALUES (?, ?, ?, ?, ?)", DRIVERS)
@@ -135,8 +141,12 @@ def update(table, id, **fields):
     execute(f"UPDATE {table} SET {sets} WHERE id = ?", *fields.values(), id)
 
 
-def active_reservation(column, value):
-    return one(f"SELECT * FROM reservations WHERE {column} = ? AND {_active}", value)
+def held_reservation(bay_id):
+    return one(f"SELECT * FROM reservations WHERE bay_id = ? AND {_held}", bay_id)
+
+
+def active_reservations(bay_id):
+    return rows(f"SELECT * FROM reservations WHERE bay_id = ? AND {_active}", bay_id)
 
 
 def log(kind, reservation_id=None, bay_id=None, **payload):

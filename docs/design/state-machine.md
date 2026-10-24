@@ -6,6 +6,7 @@ Proposal for the team. Stack-neutral. Names are ours, not from Ecurious. Items t
 
 | State | Meaning | Bay held by hardware? |
 |---|---|---|
+| `SCHEDULED` | Future time slot booked; bay stays open to walk-ins until slot start (idea: soft hold) | No |
 | `REQUESTED` | Driver asked; waiting for Ecurious confirm | No |
 | `RESERVED` | Hardware holds bay; grace timer running | Yes |
 | `BLOCKED` | Another vehicle stands in the reserved bay | – (bay occupied) |
@@ -25,6 +26,9 @@ Terminal states: `COMPLETED`, `CANCELLED`, `NO_SHOW`, `FAILED`, `FAULT_REPORTED`
 
 | From | Trigger | To | Side effects |
 |---|---|---|---|
+| `SCHEDULED` | Slot start reached, Ecurious `reserve` OK | `RESERVED` | Bay held until slot end (latest arrival); "now" bookings get `GRACE_MINUTES` |
+| `SCHEDULED` | Slot start reached, `reserve` error | `FAILED` | Show reason, offer other bay |
+| `SCHEDULED` | Driver cancels | `CANCELLED` | No hardware call (bay never held) |
 | `REQUESTED` | Ecurious `reserve` OK | `RESERVED` | Start grace timer, schedule reminder |
 | `REQUESTED` | Ecurious `reserve` error / timeout | `FAILED` | Show reason, offer other bay |
 | `REQUESTED` | Status shows bay occupied | `BLOCKED` | See blocked handling |

@@ -29,7 +29,7 @@ async def lifespan(app):
     yield
 
 
-app = FastAPI(title="Ve-curious backend", lifespan=lifespan)
+app = FastAPI(title="VE-curious backend", lifespan=lifespan)
 api = APIRouter(prefix="/api")
 dev = APIRouter(prefix="/api/dev")
 
@@ -54,9 +54,12 @@ def reservation_json(r):
         "state": r["state"],
         "blockedReason": r["blocked_reason"],
         "faultReason": r["fault_reason"],
+        "slotStart": r["slot_start"],
+        "feeCents": r["fee_cents"],
         "graceDeadline": r["grace_deadline"],
         "serverTime": db.iso(db.now()),
         "allowedActions": machine.allowed_actions(r["state"]),
+        "charging": core.charging(r),  # simulated [GAP C3]; null before CHARGING
         "createdAt": r["created_at"],
         "updatedAt": r["updated_at"],
     }
@@ -68,7 +71,7 @@ def bay_json(b):
         status = "out_of_service"
     elif not last_seen or db.now() - last_seen > timedelta(seconds=config.CAMERA_STALE_SECONDS):
         status = "unverified"  # unknown camera health is never "free"
-    elif db.active_reservation("bay_id", b["id"]):
+    elif db.held_reservation(b["id"]):
         status = "reserved"
     elif b["occupied"]:
         status = "occupied"
@@ -136,6 +139,7 @@ def me(driver: str = Depends(current_driver)):
 class ReservationIn(BaseModel):
     bayId: str
     plate: str | None = None  # defaults to the driver's profile plate
+    slotStart: str | None = None  # a "start" from GET /bays/{id}/slots; None = now
 
 
 class ChargingIn(BaseModel):
@@ -152,12 +156,18 @@ def read_bay(bay_id: str):
     return bay_json(get_bay(bay_id))
 
 
+@api.get("/bays/{bay_id}/slots")
+def bay_slots(bay_id: str):
+    get_bay(bay_id)
+    return core.slots(bay_id)
+
+
 @api.post("/reservations", status_code=201)
 def create_reservation(
     body: ReservationIn, driver: str = Depends(current_driver), idempotency_key: str | None = Header(None)
 ):
     plate = body.plate or db.one("SELECT plate FROM drivers WHERE id = ?", driver)["plate"]
-    return reservation_json(core.create_reservation(driver, body.bayId, plate, idempotency_key))
+    return reservation_json(core.create_reservation(driver, body.bayId, plate, idempotency_key, body.slotStart))
 
 
 @api.get("/reservations/{reservation_id}")

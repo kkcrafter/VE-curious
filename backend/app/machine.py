@@ -8,6 +8,9 @@ TERMINAL = ("COMPLETED", "CANCELLED", "NO_SHOW", "FAILED", "FAULT_REPORTED")
 
 # (state, event) -> next state
 TRANSITIONS = {
+    ("SCHEDULED", "reserve_ok"): "RESERVED",  # slot start reached, hardware hold done
+    ("SCHEDULED", "reserve_failed"): "FAILED",
+    ("SCHEDULED", "cancel"): "CANCELLED",
     ("REQUESTED", "reserve_ok"): "RESERVED",
     ("REQUESTED", "reserve_failed"): "FAILED",
     ("RESERVED", "cancel"): "CANCELLED",
