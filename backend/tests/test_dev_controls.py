@@ -3,12 +3,12 @@ from fastapi.testclient import TestClient
 from app import core
 from app.main import app
 
-D1 = {"X-Driver-Id": "d1"}
-
 
 def test_dev_routes_play_s1_and_failures():
     with TestClient(app) as c:
         c.post("/api/dev/reset")
+        token = c.post("/api/login", json={"email": "driver1@demo.test", "password": "demo1234"}).json()["token"]
+        D1 = {"Authorization": "Bearer " + token}
         core.tick()
         c.post("/api/dev/fail-next", json={"call": "reserve"})
         assert c.post("/api/reservations", json={"bayId": "bay-1"}, headers=D1).status_code == 502
@@ -25,4 +25,6 @@ def test_dev_routes_play_s1_and_failures():
         assert c.get(f"/api/reservations/{r['id']}", headers=D1).json()["state"] == "COMPLETED"
 
         c.post("/api/dev/reset")
-        assert c.get("/api/me/reservations", headers=D1).json() == []
+        assert c.get("/api/me/reservations", headers=D1).status_code == 401  # reset also ends sessions
+        token = c.post("/api/login", json={"email": "driver1@demo.test", "password": "demo1234"}).json()["token"]
+        assert c.get("/api/me/reservations", headers={"Authorization": "Bearer " + token}).json() == []
