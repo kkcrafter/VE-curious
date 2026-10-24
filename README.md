@@ -15,5 +15,6 @@ Challenge: integrate a smart reservation system for public EV charging into a ch
 - `docs/design/` – design drafts (proposals):
   - [Architecture + data flow diagrams](docs/design/diagrams.md) – components, data flows, reservation states, full-cycle sequence, plate event handling
   - [App outline + wireframes](docs/design/app-outline.md) – domains, screen flow, wireframe images
+  - [Backend services outline](docs/design/backend-outline.md) – modules, data model, API contract for the frontend (draft for review)
   - [State machine](docs/design/state-machine.md), [stack options](docs/design/stack-options.md), [test scenarios](docs/design/test-scenarios.md), [GoingElectric API](docs/design/goingelectric.md)
 - `docs/templates/` – documentation, decision log, declaration log, pitch outline
