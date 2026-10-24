@@ -1,19 +1,24 @@
 """HTTP API. Contract: docs/design/backend-outline.md §3."""
 
+import threading
 from contextlib import asynccontextmanager
 from datetime import timedelta
+from typing import Literal
 
-from fastapi import APIRouter, FastAPI, Request
+from fastapi import APIRouter, Depends, FastAPI, Header, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
-from . import config, db
+from . import config, core, db, machine
 from .core import ApiError
 
 
 @asynccontextmanager
 async def lifespan(app):
     db.init()
+    if config.POLL_SECONDS:
+        threading.Thread(target=core.run_ticker, daemon=True).start()
     yield
 
 
@@ -33,6 +38,22 @@ def bad_request(request: Request, e: RequestValidationError):
 
 # ---- serialisation ----
 
+def reservation_json(r):
+    return {
+        "id": r["id"],
+        "bayId": r["bay_id"],
+        "plate": r["plate"],
+        "state": r["state"],
+        "blockedReason": r["blocked_reason"],
+        "faultReason": r["fault_reason"],
+        "graceDeadline": r["grace_deadline"],
+        "serverTime": db.iso(db.now()),
+        "allowedActions": machine.allowed_actions(r["state"]),
+        "createdAt": r["created_at"],
+        "updatedAt": r["updated_at"],
+    }
+
+
 def bay_json(b):
     last_seen = db.parse(b["last_seen_at"])
     if b["out_of_service"]:
@@ -48,6 +69,21 @@ def bay_json(b):
     return {"id": b["id"], "geId": b["ge_id"], "name": b["name"], "status": status, "lastSeenAt": b["last_seen_at"]}
 
 
+# ---- auth placeholder until #5 (login decision) ----
+
+def current_driver(x_driver_id: str | None = Header(None)):
+    if not x_driver_id or not db.one("SELECT id FROM drivers WHERE id = ?", x_driver_id):
+        raise ApiError(401, "unauthorized", "Missing or unknown X-Driver-Id")
+    return x_driver_id
+
+
+def own_reservation(reservation_id: str, driver: str = Depends(current_driver)):
+    r = db.one("SELECT * FROM reservations WHERE id = ? AND driver_id = ?", reservation_id, driver)
+    if not r:
+        raise ApiError(404, "not_found", f"Reservation {reservation_id} not found")
+    return r
+
+
 def get_bay(bay_id):
     b = db.one("SELECT * FROM bays WHERE id = ?", bay_id)
     if not b:
@@ -55,7 +91,16 @@ def get_bay(bay_id):
     return b
 
 
-# ---- routes ----
+# ---- driver routes ----
+
+class ReservationIn(BaseModel):
+    bayId: str
+    plate: str | None = None  # defaults to the driver's profile plate
+
+
+class ChargingIn(BaseModel):
+    action: Literal["start", "stop"]
+
 
 @api.get("/bays")
 def list_bays():
@@ -65,6 +110,36 @@ def list_bays():
 @api.get("/bays/{bay_id}")
 def read_bay(bay_id: str):
     return bay_json(get_bay(bay_id))
+
+
+@api.post("/reservations", status_code=201)
+def create_reservation(
+    body: ReservationIn, driver: str = Depends(current_driver), idempotency_key: str | None = Header(None)
+):
+    plate = body.plate or db.one("SELECT plate FROM drivers WHERE id = ?", driver)["plate"]
+    return reservation_json(core.create_reservation(driver, body.bayId, plate, idempotency_key))
+
+
+@api.get("/reservations/{reservation_id}")
+def read_reservation(r=Depends(own_reservation)):
+    return reservation_json(r)
+
+
+@api.get("/me/reservations")
+def my_reservations(active: bool = False, driver: str = Depends(current_driver)):
+    rs = db.rows("SELECT * FROM reservations WHERE driver_id = ? ORDER BY created_at DESC", driver)
+    return [reservation_json(r) for r in rs if not active or r["state"] not in machine.TERMINAL]
+
+
+@api.post("/reservations/{reservation_id}/cancel")
+def cancel(r=Depends(own_reservation)):
+    return reservation_json(core.apply(r["id"], "cancel"))
+
+
+@api.post("/reservations/{reservation_id}/charging")
+def charging(body: ChargingIn, r=Depends(own_reservation)):
+    # [GAP C3] stand-in until Ecurious says how charging is started / observed (#20)
+    return reservation_json(core.apply(r["id"], f"{body.action}_charging"))
 
 
 app.include_router(api)
