@@ -29,7 +29,7 @@ async def lifespan(app):
     yield
 
 
-app = FastAPI(title="Ve-curious backend", lifespan=lifespan)
+app = FastAPI(title="VE-curious backend", lifespan=lifespan)
 api = APIRouter(prefix="/api")
 dev = APIRouter(prefix="/api/dev")
 
