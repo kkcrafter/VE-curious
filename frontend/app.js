@@ -41,6 +41,7 @@ async function switchLang() {
   applyStatic();
   if (lastRes) renderRes(lastRes);
   if (lastDetail) showDetail(...lastDetail);
+  renderPicked();
   loadOp(); refreshHw();
 }
 
@@ -57,6 +58,8 @@ function showTab(name) {
   document.querySelectorAll(".tabbar button").forEach((b) => b.classList.toggle("on", b.dataset.tab === name));
   if (name === "map" && map) setTimeout(() => map.invalidateSize(), 50);
   if (name === "op") loadOp();
+  if (name === "res") renderPicked();
+  if (name === "map" && lastDetail) showDetail(...lastDetail); // fresh slot list after booking or cancelling
   window.scrollTo({ top: 0 });
 }
 window.showTab = showTab;
@@ -143,20 +146,53 @@ async function showDetail(s, ours) {
   let bay = `<p class="legalnote">${t("detail.notReservable")}</p>`;
   if (ours) {
     bays = await api("/api/bays");
-    bay = bays.map((b) => {
-      const [key, cls] = BAY_STATUS[b.status] || BAY_STATUS.unverified; // unknown status is never "free"
-      return `<div class="bayrow"><div class="l">${t("detail.live")} · ${esc(b.name)}</div><div class="s ${cls}">${t(key)}</div>
-        <button class="btn btn-primary btn-block" ${b.status === "free" ? "" : "disabled"} onclick="pickBay('${esc(b.id)}')">${t("detail.reserveBtn")}</button></div>`;
-    }).join("");
+    await Promise.all(bays.map(async (b) => { bookSlots[b.id] = await api(`/api/bays/${b.id}/slots`).catch(() => []); }));
+    const still = picked && bookSlots[picked.bayId]?.find((x) => x.available && x.start === picked.slot.start);
+    picked = still ? { bayId: picked.bayId, slot: still } : null;
+    bay = `<div id="baycards"></div><p class="legalnote">${t("slots.note")}</p>`;
   }
   d.innerHTML = `<span class="eyebrow">${esc(s.network || t("detail.defaultNetwork"))}</span>
     <h3 style="margin-top:8px">${esc(s.name)}</h3>
     <div class="muted" style="margin-top:6px">${esc(s.address.street)}, ${esc(s.address.postcode)} ${esc(s.address.city)}</div>
     <div class="chips">${plugs}${fault}</div>${bay}
     <p class="legalnote">${t("detail.stationData")} <a href="https:${esc(s.url)}" target="_blank" rel="noopener">GoingElectric.de ↗</a></p>`;
+  if (ours) renderBays();
 }
-let pickedBay = null;
-window.pickBay = (id) => { pickedBay = id; showTab("res"); };
+
+// ---------- time slots per bay: start/end + fee come from the backend (GET /api/bays/:id/slots); start null = now
+let bookSlots = {}, picked = null; // picked = { bayId, slot }
+const money = (cents) => new Intl.NumberFormat(lang, { style: "currency", currency: "EUR" }).format(cents / 100);
+const hhmm = (iso) => new Date(iso).toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" });
+const span = (start, end) => `${start ? hhmm(start) : t("slots.now")} – ${hhmm(end)}`; // one format everywhere: 05:30 – 06:00
+
+function bayCard(b) {
+  // unknown camera health or a broken bay is said out loud, never hidden behind "free" slots
+  const warn = ["out_of_service", "unverified"].includes(b.status) ? ` <span class="chip bad">${t(BAY_STATUS[b.status][0])}</span>` : "";
+  const low = Math.min(...bookSlots[b.id].map((x) => x.feeCents));
+  const list = b.status === "out_of_service" ? "" : `<div class="slotlist" data-bay="${esc(b.id)}">${bookSlots[b.id].map((x, i) => {
+    const on = picked?.bayId === b.id && picked.slot === x;
+    return `<button class="srow ${on ? "on" : ""} ${x.feeCents > low ? "peak" : ""}" ${x.available ? "" : "disabled"} onclick="pickSlot('${esc(b.id)}', ${i})">
+      <span class="tm">${span(x.start, x.end)}</span><span class="st">${t(x.available ? "slots.free" : "slots.booked")}</span><span class="fee">${money(x.feeCents)}</span></button>`;
+  }).join("")}</div>`;
+  const mine = picked?.bayId === b.id;
+  return `<div class="bayrow"><div class="l">${t("detail.live")} · ${esc(b.name)}${warn}</div>${list}
+    <div class="pick"><div class="price">${mine ? money(picked.slot.feeCents) : "–"}<small>${mine ? span(picked.slot.start, picked.slot.end) : t("slots.pickOne")}</small></div>
+    <button class="btn btn-primary" ${mine ? "" : "disabled"} onclick="showTab('res')">${t("detail.reserveBtn")}</button></div></div>`;
+}
+function renderBays() {
+  const el = $("#baycards");
+  if (!el) return;
+  const keep = Object.fromEntries([...el.querySelectorAll(".slotlist")].map((l) => [l.dataset.bay, l.scrollTop]));
+  el.innerHTML = bays.map(bayCard).join("");
+  el.querySelectorAll(".slotlist").forEach((l) => (l.scrollTop = keep[l.dataset.bay] || 0));
+}
+window.pickSlot = (bayId, i) => { picked = { bayId, slot: bookSlots[bayId][i] }; renderBays(); };
+function renderPicked() {
+  $("#picked").innerHTML = picked
+    ? `<div class="k">${esc(bayName(picked.bayId))}</div><div class="tm">${span(picked.slot.start, picked.slot.end)}</div><div class="price">${money(picked.slot.feeCents)}</div>`
+    : `<p class="muted">${t("slots.pickOnMap")}</p><button class="btn" onclick="showTab('map')">${t("nav.map")}</button>`;
+  $("#btn-reserve").disabled = !picked;
+}
 
 // ---------- session (email + password; token in localStorage)
 function setSession(tok, driver = null) {
@@ -187,19 +223,23 @@ $("#btn-logout").onclick = async () => {
 $("#btn-reserve").onclick = async () => {
   $("#res-err").textContent = "";
   try {
-    const bayId = pickedBay || bays.find((b) => b.status === "free")?.id || bays[0]?.id;
     const plate = $("#f-plate").value.trim() || undefined; // empty = driver's profile plate
-    const r = await api("/api/reservations", "POST", { bayId, plate });
+    const r = await api("/api/reservations", "POST", { bayId: picked.bayId, plate, slotStart: picked.slot.start });
     resId = r.id;
+    picked = null;
     pollRes();
   } catch (e) { $("#res-err").textContent = t("err.prefix") + tErr(e.message); }
 };
 
 // Visual class per state (text comes from i18n: state.<STATE>.title / .sub)
-const STATE_CLS = { RESERVED: "ok", PLATE_MISMATCH: "warn", BLOCKED: "bad", UNVERIFIED: "warn", ARRIVED: "ok", CHARGING: "ok", COMPLETED: "ok", NO_SHOW: "bad", FAILED: "bad", FAULT_REPORTED: "warn" };
+const STATE_CLS = { SCHEDULED: "ok", RESERVED: "ok", PLATE_MISMATCH: "warn", BLOCKED: "bad", UNVERIFIED: "warn", ARRIVED: "ok", CHARGING: "ok", COMPLETED: "ok", NO_SHOW: "bad", FAILED: "bad", FAULT_REPORTED: "warn" };
 const STEPS = ["reserved", "arrived", "charging", "done"];
-const STEP_OF = { REQUESTED: 0, RESERVED: 0, PLATE_MISMATCH: 0, BLOCKED: 0, UNVERIFIED: 0, ARRIVED: 1, CHARGING: 2, COMPLETED: 3 };
-const fmt = (s) => { s = Math.max(0, Math.round(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+const STEP_OF = { SCHEDULED: 0, REQUESTED: 0, RESERVED: 0, PLATE_MISMATCH: 0, BLOCKED: 0, UNVERIFIED: 0, ARRIVED: 1, CHARGING: 2, COMPLETED: 3 };
+const fmt = (s) => {
+  s = Math.max(0, Math.round(s));
+  const p = (n) => String(n).padStart(2, "0");
+  return s >= 3600 ? `${Math.floor(s / 3600)}:${p(Math.floor(s / 60) % 60)}:${p(s % 60)}` : `${Math.floor(s / 60)}:${p(s % 60)}`;
+};
 
 let pollT;
 async function pollRes() {
@@ -232,7 +272,7 @@ const act = (action) => {
   return api(`/api/reservations/${resId}/${path}`, "POST", body).then(pollRes).catch((e) => alert(tErr(e.message)));
 };
 window.act = act;
-window.newRes = () => { resId = null; pollRes(); };
+window.newRes = () => { resId = null; pollRes(); renderPicked(); };
 
 function renderRes(r) {
   $("#res-empty").classList.toggle("hidden", !!r);
@@ -244,7 +284,9 @@ function renderRes(r) {
   const can = (a) => r.allowedActions.includes(a);
   const btn = (a, label, kind = "") => (can(a) ? `<button class="btn ${kind}" onclick="act('${a}')">${t(label)}</button>` : "");
   let big = "", btns = "";
-  if (r.state === "RESERVED" && r.graceDeadline) {
+  if (r.state === "SCHEDULED") {
+    big = `<div class="big">${fmt(secs(r.slotStart) - secs(r.serverTime))}</div><div class="k">${t("timer.untilSlot")}</div>`;
+  } else if (r.state === "RESERVED" && r.graceDeadline) {
     big = `<div class="big">${fmt(secs(r.graceDeadline) - secs(r.serverTime))}</div><div class="k">${t("timer.untilGrace")}</div>`;
   } else if (r.state === "CHARGING") {
     // ponytail: updatedAt = when CHARGING started, as nothing else updates the row in this state
@@ -263,7 +305,8 @@ function renderRes(r) {
     <span class="eyebrow">${esc(r.state.replace("_", " "))}</span>
     <div class="st">${t(`state.${r.state}.title`)}</div><div class="sub">${t(`state.${r.state}.sub`)}</div>
     ${big}${steps}
-    <div class="meta"><div><div class="k">${t("meta.bay")}</div><div class="v">${esc(bayName(r.bayId))}</div></div><div><div class="k">${t("meta.plate")}</div><div class="v">${esc(r.plate)}</div></div></div>
+    <div class="meta"><div><div class="k">${t("meta.bay")}</div><div class="v">${esc(bayName(r.bayId))}</div></div><div><div class="k">${t("meta.plate")}</div><div class="v">${esc(r.plate)}</div></div>
+      <div><div class="k">${t("meta.slot")}</div><div class="v">${r.graceDeadline ? span(r.slotStart, r.graceDeadline) : t("slots.now")}</div></div><div><div class="k">${t("meta.fee")}</div><div class="v">${r.feeCents == null ? "–" : money(r.feeCents)}</div></div></div>
     <div class="row">${btns}</div></div>`;
 }
 

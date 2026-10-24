@@ -85,8 +85,6 @@ h3{font-family:var(--font-display);font-weight:400;font-size:32px;letter-spacing
 .chip.v{background:var(--voltage-soft)}.chip.uv{background:var(--uv-soft);color:var(--voltage-deep)}.chip.bad{background:#fde1d6;color:#b8421b}
 .bayrow{margin-top:14px;padding:16px;border-radius:16px;background:var(--ink);color:var(--paper)}
 .bayrow .l{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted-d)}
-.bayrow .s{font-family:var(--font-display);font-size:32px;text-transform:uppercase;letter-spacing:.02em;line-height:1;margin:4px 0 12px}
-.bayrow .s.free{color:var(--voltage)}.bayrow .s.warn{color:#ffb38f}
 .legalnote{font-size:12px;color:var(--muted);margin-top:12px}
 
 /* ---------- forms */
@@ -134,3 +132,22 @@ td.k{color:var(--voltage-deep);font-weight:600}
 .dev{margin:12px 20px 20px;padding:14px;border:1px dashed var(--muted-2);border-radius:var(--r)}
 .dev .eyebrow{color:var(--muted)}
 .dev .btn{padding:9px 14px;font-size:11px}
+
+/* ---------- time slots (bay card on the map) */
+.slotlist{max-height:228px;overflow-y:auto;margin:12px 0;border:1px solid var(--rule-d);border-radius:12px}
+.srow{display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;width:100%;padding:12px 14px;
+  font-family:var(--font-mono);font-size:13px;background:none;color:var(--paper);border:0;border-bottom:1px solid var(--rule-d);cursor:pointer;text-align:left}
+.srow:last-child{border-bottom:0}
+.srow .st{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--voltage)}
+.srow .fee{font-weight:600}.srow.peak .fee{color:#ffb38f}
+.srow:disabled{cursor:not-allowed;color:var(--muted-d)}.srow:disabled .st{color:#ffb38f}.srow:disabled .fee{color:var(--muted-d)}
+.srow.on{background:var(--voltage);color:var(--ink)}.srow.on .st,.srow.on .fee{color:var(--ink)}
+.pick{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.pick .price{font-family:var(--font-display);font-size:34px;line-height:1;color:var(--voltage)}
+.pick .price small{display:block;font-family:var(--font-mono);font-size:10px;color:var(--muted-d);margin-top:4px;white-space:nowrap}
+.pick .btn{flex:0 0 auto;white-space:nowrap;padding:14px;letter-spacing:.06em}
+.pickedbox{margin-top:16px;padding:14px;border-radius:12px;background:var(--paper)}
+.pickedbox .k{font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.pickedbox .tm{font-family:var(--font-mono);font-size:16px;font-weight:600;margin-top:4px}
+.pickedbox .price{font-family:var(--font-display);font-size:30px;margin-top:4px}
+.pickedbox .btn{margin-top:8px}
