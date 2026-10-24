@@ -5,7 +5,7 @@ Which parts the apps have and how screens connect. Stack-neutral: web or mobile 
 - **Red dashed** = [GAP], **Orange** = [TEAM], **Green dashed** = [PROPOSAL]
 - Phase: **S1** = needed for the mandatory full cycle, **G3** = edge cases, **Stretch** = only after G3
 
-Low-fi wireframes of every screen below (Claude Design canvas, private until shared): https://claude.ai/artifact/B9xqDpmNXaKHuCeBcx6ZVb
+Low-fi wireframes: images in §6 (render on GitHub). Editable source: Claude Design canvas, private until shared: https://claude.ai/artifact/B9xqDpmNXaKHuCeBcx6ZVb
 
 ## 1. Apps
 
@@ -147,3 +147,31 @@ flowchart LR
 | KPI page | Utilisation story for the pitch | Stretch | Label numbers as assumptions | |
 
 Simplest version for the demo: the operator view is one page with these sections, no separate login.
+
+## 6. Wireframes
+
+Static exports of the design canvas (`wireframes/`). Grey dashed = component not decided; red dashed = [GAP]; orange = [TEAM]; green dashed = [PROPOSAL]. Re-export after canvas changes.
+
+![Domain map](wireframes/00-domain-map.png)
+
+**Public and account**
+
+| Map + search | Charge point detail | Login | Profile + history |
+|---|---|---|---|
+| <img src="wireframes/01-map.png" width="200" alt="Map and search"> | <img src="wireframes/02-detail.png" width="200" alt="Charge point detail"> | <img src="wireframes/03-login.png" width="200" alt="Login"> | <img src="wireframes/04-profile.png" width="200" alt="Profile and history"> |
+
+**Reservation cycle (S1)**
+
+| Reserve confirm | Reservation status (`RESERVED`; other states: §4) | Charging | Session summary |
+|---|---|---|---|
+| <img src="wireframes/05-reserve-confirm.png" width="200" alt="Reserve confirm"> | <img src="wireframes/06-status.png" width="200" alt="Reservation status"> | <img src="wireframes/07-charging.png" width="200" alt="Charging"> | <img src="wireframes/08-summary.png" width="200" alt="Session summary"> |
+
+**On-site problems (G3)**
+
+| Is this you? | Bay blocked + alternatives | Report fault |
+|---|---|---|
+| <img src="wireframes/09-plate-mismatch.png" width="200" alt="Plate mismatch"> | <img src="wireframes/10-blocked.png" width="200" alt="Bay blocked and alternatives"> | <img src="wireframes/11-fault-report.png" width="200" alt="Report fault"> |
+
+**Operator view (G3)**
+
+![Operator view](wireframes/12-operator.png)
