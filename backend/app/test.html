@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hardware test</title>
+<style>
+  :root { --bg: #fff; --fg: #111; --muted: #666; --line: #ddd; --ours: #e7f2ff; --other: #fff1e0; --accent: #0a58ca; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #111; --fg: #eee; --muted: #999; --line: #333; --ours: #10263f; --other: #3a2710; --accent: #6ea8fe; } }
+  body { margin: 0; padding: 16px; font: 15px/1.4 system-ui, sans-serif; background: var(--bg); color: var(--fg); }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  p { color: var(--muted); margin: 0 0 12px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+  button { font: inherit; padding: 10px 16px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
+  button.secondary { background: transparent; color: var(--accent); }
+  button:disabled { opacity: .4; cursor: default; }
+  .status { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; }
+  .status b { font-weight: 600; }
+  #msg { min-height: 1.4em; color: var(--accent); }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+  td, th { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr.ours { background: var(--ours); }
+  tr.other { background: var(--other); }
+  code { font-size: 12px; word-break: break-all; }
+</style>
+</head>
+<body>
+<h1>Hardware test: bay-1</h1>
+<p>Shared device: other teams move it too. <span style="background:var(--ours)">Blue</span> = our command; <span style="background:var(--other)">orange</span> = arm moved with no command from us in the 10 s before.</p>
+
+<div class="row">
+  <button id="reserve">Reserve (arm up)</button>
+  <button id="cancel" class="secondary" disabled>Cancel (arm down)</button>
+</div>
+<div id="msg"></div>
+
+<div class="status">
+  <span>Reservation</span><b id="res">–</b>
+  <span>Bay status</span><b id="bay">–</b>
+  <span>Lock last seen</span><span id="seen">–</span>
+</div>
+
+<table>
+  <thead><tr><th>Time</th><th>Event</th><th>Details</th></tr></thead>
+  <tbody id="log"></tbody>
+</table>
+
+<script>
+const H = { "X-Driver-Id": "d1", "Content-Type": "application/json" };
+let current = null;
+
+async function call(method, path, body) {
+  const r = await fetch(path, { method, headers: H, body: body && JSON.stringify(body) });
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error ? `${data.error.code}: ${data.error.message}` : r.status);
+  return data;
+}
+
+function say(text) { document.getElementById("msg").textContent = text; }
+
+document.getElementById("reserve").onclick = async () => {
+  say("Reserving…");
+  try { current = await call("POST", "/api/reservations", { bayId: "bay-1" }); say("Reserve sent: watch the arm go up"); }
+  catch (e) { say(e.message); }
+  refresh();
+};
+
+document.getElementById("cancel").onclick = async () => {
+  say("Cancelling…");
+  try { current = await call("POST", `/api/reservations/${current.id}/cancel`); say("Cancel sent: watch the arm go down"); }
+  catch (e) { say(e.message); }
+  refresh();
+};
+
+function local(ts) { return new Date(ts).toLocaleTimeString(); }
+
+async function refresh() {
+  try {
+    const [bay, mine, events] = await Promise.all([
+      call("GET", "/api/bays/bay-1"), call("GET", "/api/me/reservations?active=true"), call("GET", "/api/operator/events?limit=60"),
+    ]);
+    const active = mine[0];
+    if (active) current = active;
+    document.getElementById("res").textContent = active ? `${active.state} (${active.id})` : (current ? `${current.state} (${current.id})` : "none");
+    document.getElementById("cancel").disabled = !(active && active.allowedActions.includes("cancel"));
+    document.getElementById("reserve").disabled = !!active;
+    document.getElementById("bay").textContent = bay.status;
+    document.getElementById("seen").textContent = bay.lastSeenAt ? local(bay.lastSeenAt) : "–";
+
+    const rows = events.filter(e => e.bayId === "bay-1" || e.kind.startsWith("sse_"));
+    const ourCalls = rows.filter(e => e.kind === "adapter_call").map(e => new Date(e.ts).getTime());
+    document.getElementById("log").innerHTML = rows.map(e => {
+      const t = new Date(e.ts).getTime();
+      const armMove = e.kind === "hardware_event" && e.payload.event === "arm" && e.payload.status === "moving";
+      const cls = e.kind === "adapter_call" ? "ours" : armMove && !ourCalls.some(c => t - c >= 0 && t - c <= 10000) ? "other" : "";
+      const label = e.kind === "hardware_event" ? `lock: ${e.payload.event} ${e.payload.status ?? (e.payload.occupied ?? e.payload.plate ?? "")}` : e.kind;
+      return `<tr class="${cls}"><td>${local(e.ts)}</td><td>${label}</td><td><code>${JSON.stringify(e.payload)}</code></td></tr>`;
+    }).join("");
+  } catch (e) { say(e.message); }
+}
+
+refresh();
+setInterval(refresh, 1000);
+</script>
+</body>
+</html>

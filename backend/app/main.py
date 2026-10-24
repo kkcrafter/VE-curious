@@ -1,13 +1,15 @@
 """HTTP API. Contract: docs/design/backend-outline.md §3."""
 
+import json
 import threading
 from contextlib import asynccontextmanager
+from pathlib import Path
 from datetime import timedelta
 from typing import Literal
 
 from fastapi import APIRouter, Depends, FastAPI, Header, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
 from . import config, core, db, hardware_events, machine
@@ -143,6 +145,23 @@ def cancel(r=Depends(own_reservation)):
 def charging(body: ChargingIn, r=Depends(own_reservation)):
     # [GAP C3] stand-in until Ecurious says how charging is started / observed (#20)
     return reservation_json(core.apply(r["id"], f"{body.action}_charging"))
+
+
+# ---- operator (rest of #26 later) ----
+
+@api.get("/operator/events")
+def operator_events(limit: int = 100):
+    rs = db.rows("SELECT * FROM event_log ORDER BY id DESC LIMIT ?", min(limit, 500))
+    return [
+        {"ts": r["ts"], "reservationId": r["reservation_id"], "bayId": r["bay_id"], "kind": r["kind"], "payload": json.loads(r["payload"])}
+        for r in rs
+    ]
+
+
+@app.get("/test", include_in_schema=False)
+def hardware_test_page():
+    # ponytail: one static page to watch the shared lock live; the real operator view is frontend #36
+    return FileResponse(Path(__file__).with_name("test.html"))
 
 
 # ---- dev controls (mock adapter only) ----
