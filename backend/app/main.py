@@ -1,13 +1,16 @@
 """HTTP API. Contract: docs/design/backend-outline.md §3."""
 
+import hmac
+import json
 import threading
 from contextlib import asynccontextmanager
+from pathlib import Path
 from datetime import timedelta
 from typing import Literal
 
-from fastapi import APIRouter, Depends, FastAPI, Header, Request
+from fastapi import APIRouter, Depends, FastAPI, Header, Query, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
 from . import config, core, db, hardware_events, machine
@@ -143,6 +146,28 @@ def cancel(r=Depends(own_reservation)):
 def charging(body: ChargingIn, r=Depends(own_reservation)):
     # [GAP C3] stand-in until Ecurious says how charging is started / observed (#20)
     return reservation_json(core.apply(r["id"], f"{body.action}_charging"))
+
+
+# ---- operator (rest of #26 later) ----
+
+def require_operator(x_operator_token: str | None = Header(None)):
+    if config.OPERATOR_TOKEN and not hmac.compare_digest(x_operator_token or "", config.OPERATOR_TOKEN):
+        raise ApiError(401, "unauthorized", "Missing or wrong X-Operator-Token")
+
+
+@api.get("/operator/events", dependencies=[Depends(require_operator)])
+def operator_events(limit: int = Query(100, ge=1, le=500)):
+    rs = db.rows("SELECT * FROM event_log ORDER BY id DESC LIMIT ?", limit)
+    return [
+        {"ts": r["ts"], "reservationId": r["reservation_id"], "bayId": r["bay_id"], "kind": r["kind"], "payload": json.loads(r["payload"])}
+        for r in rs
+    ]
+
+
+@app.get("/test", include_in_schema=False)
+def hardware_test_page():
+    # ponytail: one static page to watch the shared lock live; the real operator view is frontend #36
+    return FileResponse(Path(__file__).with_name("test.html"))
 
 
 # ---- dev controls (mock adapter only) ----
