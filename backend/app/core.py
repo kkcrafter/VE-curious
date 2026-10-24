@@ -56,6 +56,36 @@ def apply(reservation_id, event, **fields):
         return db.one("SELECT * FROM reservations WHERE id = ?", reservation_id)
 
 
+def charging(r):
+    """Simulated charger session [GAP C3]: None until CHARGING, frozen once COMPLETED.
+    Start/end times come from the event log; energy from constant power, sped up for the demo."""
+    def entered(state):
+        row = db.one(
+            "SELECT ts FROM event_log WHERE reservation_id = ? AND kind = 'state_change' AND json_extract(payload, '$.to') = ?",
+            r["id"], state,
+        )
+        return row and row["ts"]
+
+    start, end = entered("CHARGING"), entered("COMPLETED")
+    if not start:
+        return None
+    # ponytail: constant power until full; a taper curve or real charger meter values (OCPP) replace this
+    seconds = ((db.parse(end) if end else db.now()) - db.parse(start)).total_seconds() * config.CHARGE_SPEEDUP
+    room = config.BATTERY_KWH * (100 - config.START_SOC) / 100
+    kwh = min(config.CHARGE_KW * seconds / 3600, room)
+    return {
+        "startedAt": start,
+        "endedAt": end,
+        "durationSeconds": round(seconds),
+        "energyKwh": round(kwh, 2),
+        "powerKw": 0 if end or kwh >= room else config.CHARGE_KW,
+        "socPercent": round(config.START_SOC + kwh / config.BATTERY_KWH * 100),
+        "pricePerKwhCents": config.KWH_CENTS,
+        "costCents": round(kwh * config.KWH_CENTS),
+        "simulated": True,
+    }
+
+
 def fee_cents(start):
     hour = start.astimezone(ZoneInfo(config.TIMEZONE)).hour
     peak = config.PEAK_HOURS[0] <= hour < config.PEAK_HOURS[1]

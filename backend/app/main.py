@@ -59,6 +59,7 @@ def reservation_json(r):
         "graceDeadline": r["grace_deadline"],
         "serverTime": db.iso(db.now()),
         "allowedActions": machine.allowed_actions(r["state"]),
+        "charging": core.charging(r),  # simulated [GAP C3]; null before CHARGING
         "createdAt": r["created_at"],
         "updatedAt": r["updated_at"],
     }

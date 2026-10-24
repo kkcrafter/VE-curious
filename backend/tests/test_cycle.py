@@ -106,3 +106,19 @@ def test_stale_camera_is_never_free(c):
     db.update("bays", "bay-1", last_seen_at="2020-01-01T00:00:00Z")
     core.tick()
     assert c.get("/api/bays/bay-1").json()["status"] == "unverified"
+
+
+def test_simulated_charging_session(c):
+    r = reserve(c).json()
+    assert r["charging"] is None
+    plate("M-AB 1234")
+    c.post(f"/api/reservations/{r['id']}/charging", json={"action": "start"}, headers=D1)
+    # pretend charging started 60 real seconds ago: 60 min at 22 kW with the default 60x speed-up
+    db.execute("UPDATE event_log SET ts = '2020-01-01T00:00:00Z' WHERE json_extract(payload, '$.to') = 'CHARGING'")
+    s = get(c, r).json()["charging"]
+    assert s["powerKw"] == 0 and s["socPercent"] == 100 and s["energyKwh"] == 48  # battery full: 60 kWh from 20 %
+    c.post(f"/api/reservations/{r['id']}/charging", json={"action": "stop"}, headers=D1)
+    db.execute("UPDATE event_log SET ts = '2020-01-01T00:01:00Z' WHERE json_extract(payload, '$.to') = 'COMPLETED'")
+    s = get(c, r).json()["charging"]
+    assert s["endedAt"] == "2020-01-01T00:01:00Z" and s["durationSeconds"] == 3600
+    assert s["energyKwh"] == 22 and s["socPercent"] == 57 and s["costCents"] == 22 * 59 and s["powerKw"] == 0
