@@ -17,3 +17,9 @@ FEE_CENTS = int(os.environ.get("FEE_CENTS", "200"))  # reservation fee, separate
 PEAK_HOURS = (16, 19)  # local time, start inclusive, end exclusive
 PEAK_FACTOR = 1.5
 TIMEZONE = os.environ.get("TIMEZONE", "Europe/Berlin")
+# Mock charger: Ecurious has no charging API [GAP C3]. Placeholder numbers; the app labels the data as simulated
+CHARGE_KW = float(os.environ.get("CHARGE_KW", "22"))
+KWH_CENTS = int(os.environ.get("KWH_CENTS", "59"))  # charge point operator's price, shown apart from the reservation fee (AFIR)
+BATTERY_KWH = 60
+START_SOC = 20  # battery percent at plug-in
+CHARGE_SPEEDUP = float(os.environ.get("CHARGE_SPEEDUP", "60"))  # demo: 1 real second = 1 charging minute; full in ~2 min

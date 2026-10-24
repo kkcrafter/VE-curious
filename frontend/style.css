@@ -151,3 +151,15 @@ td.k{color:var(--voltage-deep);font-weight:600}
 .pickedbox .tm{font-family:var(--font-mono);font-size:16px;font-weight:600;margin-top:4px}
 .pickedbox .price{font-family:var(--font-display);font-size:30px;margin-top:4px}
 .pickedbox .btn{margin-top:8px}
+
+/* ---------- charging (simulated charger data, see backend core.charging) */
+.battery{height:10px;border-radius:5px;background:var(--rule-d);margin-top:14px;overflow:hidden}
+.battery div{height:100%;background:var(--voltage);transition:width .6s}
+.battery.live div{background:repeating-linear-gradient(90deg,var(--voltage) 0 14px,#d4f05a 14px 28px);background-size:56px 100%;animation:flow 1s linear infinite}
+@keyframes flow{to{background-position:56px 0}}
+.receipt{margin-top:20px;border:1px solid var(--rule-d);border-radius:12px;padding:2px 14px}
+.receipt div{display:flex;justify-content:space-between;gap:12px;padding:10px 0;font-family:var(--font-mono);font-size:13px;border-bottom:1px solid var(--rule-d)}
+.receipt div:last-child{border-bottom:0}
+.receipt span{color:var(--muted-d)}
+.receipt .total b{color:var(--voltage);font-size:17px}
+.status .note{font-size:12px;color:var(--muted-d);margin-top:12px}

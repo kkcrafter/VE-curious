@@ -70,7 +70,6 @@
   "btn.stopCharging": "Stop charging",
   "btn.again": "Reserve again",
   "timer.untilGrace": "until grace period ends",
-  "timer.charging": "charging time",
   "steps.reserved": "Reserved",
   "steps.arrived": "Arrived",
   "steps.charging": "Charging",
@@ -113,5 +112,15 @@
   "slots.free": "Free",
   "slots.booked": "Booked",
   "slots.pickOne": "Pick a time slot",
-  "slots.pickOnMap": "Pick a bay and a time slot on the map first."
+  "slots.pickOnMap": "Pick a bay and a time slot on the map first.",
+  "charge.soc": "battery",
+  "charge.full": "battery full · stop and unplug",
+  "charge.battery": "Battery",
+  "charge.duration": "Duration",
+  "charge.energy": "Energy",
+  "charge.power": "Power",
+  "charge.costSoFar": "Cost so far",
+  "charge.energyLine": "Charging · {kwh} kWh × {price}",
+  "charge.total": "Total",
+  "charge.note": "Charger data is simulated (no charging API yet). Charging is billed per kWh by the charge point operator, shown apart from the reservation fee. Example prices."
 }

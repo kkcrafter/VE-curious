@@ -288,10 +288,23 @@ function renderRes(r) {
     big = `<div class="big">${fmt(secs(r.slotStart) - secs(r.serverTime))}</div><div class="k">${t("timer.untilSlot")}</div>`;
   } else if (r.state === "RESERVED" && r.graceDeadline) {
     big = `<div class="big">${fmt(secs(r.graceDeadline) - secs(r.serverTime))}</div><div class="k">${t("timer.untilGrace")}</div>`;
-  } else if (r.state === "CHARGING") {
-    // ponytail: updatedAt = when CHARGING started, as nothing else updates the row in this state
-    big = `<div class="big">${fmt(secs(r.serverTime) - secs(r.updatedAt))}</div><div class="k">${t("timer.charging")}</div>`;
   }
+  // Charger data is simulated by the backend [GAP C3]; kWh price shown apart from the reservation fee (AFIR)
+  const c = r.charging, fee = r.feeCents ?? 0;
+  const cell = (k, v) => `<div><div class="k">${t(k)}</div><div class="v">${v}</div></div>`;
+  const line = (k, v, cls = "") => `<div class="${cls}"><span>${k}</span><b>${v}</b></div>`;
+  let session = "";
+  if (r.state === "CHARGING" && c) {
+    big = `<div class="big">${c.socPercent}%</div><div class="k">${t(c.powerKw ? "charge.soc" : "charge.full")}</div>
+      <div class="battery ${c.powerKw ? "live" : ""}"><div style="width:${c.socPercent}%"></div></div>`;
+    session = `<div class="meta">${cell("charge.duration", fmt(c.durationSeconds))}${cell("charge.energy", c.energyKwh.toFixed(1) + " kWh")}
+      ${cell("charge.power", c.powerKw + " kW")}${cell("charge.costSoFar", money(c.costCents))}</div>`;
+  } else if (r.state === "COMPLETED" && c) {
+    session = `<div class="receipt">${line(t("charge.duration"), fmt(c.durationSeconds))}${line(t("charge.battery"), c.socPercent + "%")}
+      ${line(t("charge.energyLine", { kwh: c.energyKwh.toFixed(1), price: money(c.pricePerKwhCents) }), money(c.costCents))}
+      ${line(t("meta.fee"), money(fee))}${line(t("charge.total"), money(c.costCents + fee), "total")}</div>`;
+  }
+  if (c) session += `<p class="note">${t("charge.note")}</p>`;
   if (r.state === "RESERVED") btns += `<button class="btn btn-primary" onclick="window.open('https://www.google.com/maps?q=${station.coordinates.lat},${station.coordinates.lng}')">${t("btn.navigate")}</button>`;
   btns += btn("confirm_arrival", "btn.confirmMe", "btn-primary") + btn("deny_arrival", "btn.no")
     + btn("start_charging", "btn.startCharging", "btn-primary") + btn("stop_charging", "btn.stopCharging")
@@ -304,9 +317,9 @@ function renderRes(r) {
   v.innerHTML = `<div class="status dark ${cls}">
     <span class="eyebrow">${esc(r.state.replace("_", " "))}</span>
     <div class="st">${t(`state.${r.state}.title`)}</div><div class="sub">${t(`state.${r.state}.sub`)}</div>
-    ${big}${steps}
-    <div class="meta"><div><div class="k">${t("meta.bay")}</div><div class="v">${esc(bayName(r.bayId))}</div></div><div><div class="k">${t("meta.plate")}</div><div class="v">${esc(r.plate)}</div></div>
-      <div><div class="k">${t("meta.slot")}</div><div class="v">${r.graceDeadline ? span(r.slotStart, r.graceDeadline) : t("slots.now")}</div></div><div><div class="k">${t("meta.fee")}</div><div class="v">${r.feeCents == null ? "–" : money(r.feeCents)}</div></div></div>
+    ${big}${steps}${session}
+    <div class="meta">${cell("meta.bay", esc(bayName(r.bayId)))}${cell("meta.plate", esc(r.plate))}
+      ${cell("meta.slot", r.graceDeadline ? span(r.slotStart, r.graceDeadline) : t("slots.now"))}${cell("meta.fee", r.feeCents == null ? "–" : money(r.feeCents))}</div>
     <div class="row">${btns}</div></div>`;
 }
 

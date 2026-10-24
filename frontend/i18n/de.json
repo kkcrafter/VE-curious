@@ -70,7 +70,6 @@
   "btn.stopCharging": "Laden beenden",
   "btn.again": "Erneut reservieren",
   "timer.untilGrace": "bis die Wartezeit endet",
-  "timer.charging": "Ladedauer",
   "steps.reserved": "Reserviert",
   "steps.arrived": "Angekommen",
   "steps.charging": "Lädt",
@@ -113,5 +112,15 @@
   "slots.free": "Frei",
   "slots.booked": "Gebucht",
   "slots.pickOne": "Zeitfenster wählen",
-  "slots.pickOnMap": "Wähle zuerst auf der Karte einen Platz und ein Zeitfenster."
+  "slots.pickOnMap": "Wähle zuerst auf der Karte einen Platz und ein Zeitfenster.",
+  "charge.soc": "Akku",
+  "charge.full": "Akku voll · beenden und abstecken",
+  "charge.battery": "Akku",
+  "charge.duration": "Dauer",
+  "charge.energy": "Energie",
+  "charge.power": "Leistung",
+  "charge.costSoFar": "Kosten bisher",
+  "charge.energyLine": "Laden · {kwh} kWh × {price}",
+  "charge.total": "Gesamt",
+  "charge.note": "Ladedaten sind simuliert (noch keine Lade-API). Laden rechnet der Ladepunktbetreiber pro kWh ab, getrennt von der Reservierungsgebühr. Beispielpreise."
 }
