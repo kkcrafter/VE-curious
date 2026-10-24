@@ -1,4 +1,7 @@
+import hashlib
+import hmac
 import json
+import secrets
 import sqlite3
 import threading
 from datetime import UTC, datetime
@@ -16,7 +19,14 @@ SCHEMA = f"""
 CREATE TABLE IF NOT EXISTS drivers (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
-  plate TEXT NOT NULL
+  plate TEXT NOT NULL,
+  email TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS sessions (
+  token TEXT PRIMARY KEY,
+  driver_id TEXT NOT NULL REFERENCES drivers,
+  created_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS bays (
   id TEXT PRIMARY KEY,
@@ -56,8 +66,23 @@ CREATE TABLE IF NOT EXISTS event_log (
 );
 """
 
-# Demo drivers until the login decision (#5)
-DRIVERS = [("d1", "Demo Driver 1", "M-AB 1234"), ("d2", "Demo Driver 2", "B-CD 5678")]
+
+
+def hash_password(password, salt=None):
+    salt = salt or secrets.token_bytes(16)
+    return salt.hex() + "$" + hashlib.scrypt(password.encode(), salt=salt, n=2**14, r=8, p=1).hex()
+
+
+def check_password(password, stored):
+    salt, _ = stored.split("$")
+    return hmac.compare_digest(hash_password(password, bytes.fromhex(salt)), stored)
+
+
+# Prototype accounts (no sign-up yet). Hashed once at import so db.reset() stays fast.
+DRIVERS = [
+    ("d1", "Demo Driver 1", "M-AB 1234", "driver1@demo.test", hash_password("demo1234")),
+    ("d2", "Demo Driver 2", "B-CD 5678", "driver2@demo.test", hash_password("demo1234")),
+]
 
 
 def now():
@@ -73,9 +98,11 @@ def parse(ts):
 
 
 def init():
+    if one("SELECT 1 FROM sqlite_master WHERE name = 'drivers'") and not one("SELECT 1 FROM pragma_table_info('drivers') WHERE name = 'email'"):
+        raise SystemExit(f"{config.DB_PATH} predates login (no drivers.email): delete it and restart")
     with conn:
         conn.executescript(SCHEMA)
-        conn.executemany("INSERT OR IGNORE INTO drivers VALUES (?, ?, ?)", DRIVERS)
+        conn.executemany("INSERT OR IGNORE INTO drivers VALUES (?, ?, ?, ?, ?)", DRIVERS)
         conn.executemany(
             "INSERT OR IGNORE INTO bays (id, lock_id, name) VALUES (?, ?, ?)",
             [(f"bay-{i}", lock_id, f"Test bay {i}") for i, lock_id in enumerate(config.LOCK_IDS, 1)],
@@ -84,7 +111,7 @@ def init():
 
 def reset():
     with lock, conn:
-        conn.executescript("DROP TABLE IF EXISTS reservations; DROP TABLE IF EXISTS event_log; DROP TABLE IF EXISTS bays; DROP TABLE IF EXISTS drivers;")
+        conn.executescript("DROP TABLE IF EXISTS reservations; DROP TABLE IF EXISTS event_log; DROP TABLE IF EXISTS bays; DROP TABLE IF EXISTS sessions; DROP TABLE IF EXISTS drivers;")
     init()
 
 

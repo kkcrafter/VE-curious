@@ -46,10 +46,13 @@
 </table>
 
 <script>
-const H = { "X-Driver-Id": "d1", "Content-Type": "application/json" };
-let current = null;
+const H = { "Content-Type": "application/json" };
+let current = null, session = null;
 
 async function call(method, path, body) {
+  if (path !== "/api/login") {  // test page always acts as seeded driver 1; one login shared by parallel calls
+    H.Authorization = await (session ||= call("POST", "/api/login", { email: "driver1@demo.test", password: "demo1234" }).then((r) => "Bearer " + r.token));
+  }
   const r = await fetch(path, { method, headers: H, body: body && JSON.stringify(body) });
   const data = await r.json();
   if (!r.ok) throw new Error(data.error ? `${data.error.code}: ${data.error.message}` : r.status);

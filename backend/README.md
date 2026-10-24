@@ -23,7 +23,7 @@ uv run pytest -q
 | File | Job |
 |---|---|
 | `app/config.py` | Settings from env |
-| `app/db.py` | SQLite schema, seed (bays from `LOCK_IDS`, demo drivers), event log writer |
+| `app/db.py` | SQLite schema, seed (bays from `LOCK_IDS`, demo drivers `driver1@demo.test` / `driver2@demo.test`, password `demo1234`), password hashing (scrypt), event log writer |
 | `app/machine.py` | State machine, pure |
 | `app/adapters.py` | Hardware adapters: `MockAdapter` (and Ecurious) behind one interface |
 | `app/core.py` | Only place that changes reservation state or calls hardware |

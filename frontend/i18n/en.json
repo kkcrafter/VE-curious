@@ -31,7 +31,6 @@
   "bay.free": "Free now",
   "form.eyebrow": "Reserve",
   "form.title": "Your spot,<br>held for you.",
-  "form.name": "Demo driver",
   "form.plate": "Licence plate (empty = your profile plate)",
   "form.reserve": "Reserve bay →",
   "err.prefix": "Could not reserve: ",
@@ -95,5 +94,11 @@
   "err.driver_has_active": "You already have an active reservation.",
   "err.hardware_error": "The bay did not respond. Try again or pick another bay.",
   "err.invalid_action": "Not possible right now.",
-  "err.unauthorized": "Not signed in."
+  "err.unauthorized": "Not signed in.",
+  "login.email": "Email",
+  "login.password": "Password",
+  "login.submit": "Log in →",
+  "login.hint": "Prototype accounts: driver1@demo.test or driver2@demo.test, password demo1234",
+  "login.logout": "Log out",
+  "err.bad_credentials": "Wrong email or password."
 }

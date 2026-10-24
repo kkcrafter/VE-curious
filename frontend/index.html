@@ -45,9 +45,16 @@
   <section id="tab-res" class="hidden">
     <div id="res-empty">
       <div class="sheet"><span class="eyebrow" data-i18n="form.eyebrow"></span><h3 style="margin-top:10px;font-size:44px" data-i18n="form.title"></h3></div>
-      <div class="card">
-        <!-- ponytail: ids match the backend's seeded drivers (db.DRIVERS) until the login decision (#5) -->
-        <label style="margin-top:0"><span data-i18n="form.name"></span><select id="f-driver"><option value="d1">Demo Driver 1 · M-AB 1234</option><option value="d2">Demo Driver 2 · B-CD 5678</option></select></label>
+      <!-- Login only for reserving; the map stays public (GoingElectric terms) -->
+      <form class="card hidden" id="login-card">
+        <label style="margin-top:0"><span data-i18n="login.email"></span><input id="f-email" type="email" autocomplete="username" required></label>
+        <label><span data-i18n="login.password"></span><input id="f-pass" type="password" autocomplete="current-password" required></label>
+        <div class="row"><button class="btn btn-primary btn-block" data-i18n="login.submit"></button></div>
+        <p class="muted" data-i18n="login.hint"></p>
+        <p id="login-err" class="err"></p>
+      </form>
+      <div class="card hidden" id="reserve-card">
+        <div class="row" style="margin-top:0;align-items:center"><span id="who" class="muted"></span><button class="btn" id="btn-logout" data-i18n="login.logout"></button></div>
         <label><span data-i18n="form.plate"></span><input id="f-plate" class="platebox"></label>
         <div class="row"><button class="btn btn-primary btn-block" id="btn-reserve" data-i18n="form.reserve"></button></div>
         <p id="res-err" class="err"></p>

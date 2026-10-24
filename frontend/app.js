@@ -5,10 +5,11 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 const api = async (path, method = "GET", body) => {
   const r = await fetch(path, {
     method,
-    headers: { "Content-Type": "application/json", "X-Driver-Id": driver },
+    headers: { "Content-Type": "application/json", ...(token && { Authorization: "Bearer " + token }) },
     body: body ? JSON.stringify(body) : undefined,
   });
   const j = await r.json().catch(() => ({}));
+  if (r.status === 401 && token && !path.startsWith("/api/operator")) setSession(null); // session gone (logout, dev reset)
   if (!r.ok) throw new Error(j.error?.code || r.statusText);
   return j;
 };
@@ -44,8 +45,7 @@ async function switchLang() {
 }
 
 // ---------- state
-// ponytail: demo drivers seeded by the backend (db.DRIVERS) until the login decision (#5)
-let driver = localStorage.getItem("driver") || "d1";
+let token = localStorage.getItem("token"), me = null;
 let map, resId = null, bays = [], station = null, tab = "map", lastRes = null, lastDetail = null;
 const bayName = (id) => bays.find((b) => b.id === id)?.name || id;
 
@@ -158,9 +158,31 @@ async function showDetail(s, ours) {
 let pickedBay = null;
 window.pickBay = (id) => { pickedBay = id; showTab("res"); };
 
+// ---------- session (email + password; token in localStorage)
+function setSession(tok, driver = null) {
+  token = tok; me = driver;
+  tok ? localStorage.setItem("token", tok) : localStorage.removeItem("token");
+  $("#login-card").classList.toggle("hidden", !!me);
+  $("#reserve-card").classList.toggle("hidden", !me);
+  if (me) $("#who").textContent = `${me.name} · ${me.plate}`;
+}
+$("#login-card").onsubmit = async (e) => {
+  e.preventDefault();
+  $("#login-err").textContent = "";
+  try {
+    const r = await api("/api/login", "POST", { email: $("#f-email").value, password: $("#f-pass").value });
+    $("#f-pass").value = "";
+    setSession(r.token, r.driver);
+    resumeRes();
+  } catch (err) { $("#login-err").textContent = tErr(err.message); }
+};
+$("#btn-logout").onclick = async () => {
+  await api("/api/logout", "POST").catch(() => {});
+  setSession(null);
+  window.newRes();
+};
+
 // ---------- reservation
-$("#f-driver").value = driver;
-$("#f-driver").onchange = (e) => { driver = e.target.value; localStorage.setItem("driver", driver); resumeRes(); };
 
 $("#btn-reserve").onclick = async () => {
   $("#res-err").textContent = "";
@@ -191,6 +213,8 @@ async function pollRes() {
   pollT = setTimeout(pollRes, 1500);
 }
 async function resumeRes() {
+  if (token && !me) { try { setSession(token, await api("/api/me")); } catch { setSession(null); } }
+  if (!token) { setSession(null); resId = null; return pollRes(); }
   try { resId = (await api("/api/me/reservations?active=true"))[0]?.id || null; } catch { resId = null; }
   pollRes();
 }
