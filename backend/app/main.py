@@ -1,5 +1,6 @@
 """HTTP API. Contract: docs/design/backend-outline.md §3."""
 
+import hmac
 import json
 import threading
 from contextlib import asynccontextmanager
@@ -149,7 +150,12 @@ def charging(body: ChargingIn, r=Depends(own_reservation)):
 
 # ---- operator (rest of #26 later) ----
 
-@api.get("/operator/events")
+def require_operator(x_operator_token: str | None = Header(None)):
+    if config.OPERATOR_TOKEN and not hmac.compare_digest(x_operator_token or "", config.OPERATOR_TOKEN):
+        raise ApiError(401, "unauthorized", "Missing or wrong X-Operator-Token")
+
+
+@api.get("/operator/events", dependencies=[Depends(require_operator)])
 def operator_events(limit: int = 100):
     rs = db.rows("SELECT * FROM event_log ORDER BY id DESC LIMIT ?", min(limit, 500))
     return [
