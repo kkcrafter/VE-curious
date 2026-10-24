@@ -2,6 +2,27 @@
 
 Challenge: integrate a smart reservation system for public EV charging into a charging app.
 
+A driver finds a charger on the map, books the bay now or for a time slot, and a barrier keeps the bay free until they arrive. A camera reads the plate, the barrier goes down, the car charges, and the bay is released when charging ends or the car leaves. The backend keeps one reservation state that the app, the hardware and the operator all read; it talks to the Ecurious lock and camera through an adapter, with a mock adapter so the whole cycle runs on a laptop.
+
+<img src="docs/design/happy-flow/01-map.jpg" width="160" alt="Map with the reservable smart bay"> <img src="docs/design/happy-flow/09-bay-held.jpg" width="160" alt="Bay held, grace countdown"> <img src="docs/design/happy-flow/11-charging.jpg" width="160" alt="Charging: battery %, kWh, cost"> <img src="docs/design/happy-flow/13-session-summary.jpg" width="160" alt="Session summary with fee and energy cost">
+
+All screens step by step: [happy flow](docs/design/happy-flow.md).
+
+## Key features
+
+- **Map of real chargers** – stations from GoingElectric; our smart bay is the lime pin with its live status.
+- **Book now or a time slot** – slots with a price each; a slot holds the bay only from its start time. Cancel anytime before arrival.
+- **Plate check-in** – the camera's plate read moves the booking to `ARRIVED` and lowers the barrier; no app tap at the bay.
+- **Charging and summary** – start / stop in the app, live battery %, kWh and cost, then a summary with energy cost and reservation fee apart.
+- **Never "free" when unsure** – if the camera stops reporting, the bay shows `unverified`, not free, and cannot be booked.
+- **One source of truth** – a pure state machine; only one module changes state or calls hardware; every step goes to an event log. Bookings are idempotent per driver, so a retry never books twice.
+- **Mock or real hardware** – `ADAPTER=mock` with dev controls to simulate plate reads and car departure; `ADAPTER=ecurious` for the real lock (SSE with polling fallback), plus a hardware test page.
+- **Operator view** – bay status and the event list.
+- **Driver login** – email + password; the map stays public.
+- **English and German** – all text in `frontend/i18n/`.
+
+Not built yet (no-show, blocked bay, plate mismatch, fees charged, hosting): [to-do](docs/todo.md).
+
 ## Docs map
 
 - `docs/challenge-brief.pdf` – original brief from Ecurious
