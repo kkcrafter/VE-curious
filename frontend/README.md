@@ -9,7 +9,7 @@ The backend is the source of truth. API contract: [`docs/design/backend-outline.
 | `app.js` | UI logic and every backend call (`api()`, `act()`) |
 | `index.html`, `style.css` | Page skeleton, Ecurious look |
 | `i18n/en.json`, `de.json` | All visible text. Backend error codes map to `err.<code>` |
-| `sample_chargepoints.json` | Map stations until the GoingElectric key exists [GAP C8] |
+| `sample_chargepoints.json` | Our test bay pin (not in GoingElectric) and all map stations when no key is set |
 | `check_i18n.py` | `python check_i18n.py` before committing text changes |
 
 ## How it follows the backend
@@ -17,9 +17,10 @@ The backend is the source of truth. API contract: [`docs/design/backend-outline.
 - Driver: `X-Driver-Id` header from the demo driver picker (`d1`, `d2` seeded by the backend).
 - Buttons on the booking screen come from `allowedActions`; mapping to routes is `ACTIONS` in `app.js`. New backend actions (`confirm_arrival`, `deny_arrival`, `report_fault`) show up by themselves once the backend allows them.
 - Countdown: `graceDeadline − serverTime`.
+- Map stations: the browser calls GoingElectric directly (terms: device fetches, no backend copy) with the key from `GET /api/config` (`GOINGELECTRIC_API_KEY` in `backend/.env`). Map-box search, debounced, only at zoom ≥ 12. No key: sample data.
 - Map pin: the station whose `ge_id` matches a bay's `geId`; while no bay has a `geId`, the sample's `reservable` station.
 - Demo panel calls `/api/dev/*` (only with `ADAPTER=mock`).
 
 ## Hidden until the backend has it
 
-Deposit and fee box (ledger, B4), booking code (B6), reminder banner, no-show (sweep), fault report, operator clear-fault, KPIs beyond bay status, live GoingElectric data.
+Deposit and fee box (ledger, B4), booking code (B6), reminder banner, no-show (sweep), fault report, operator clear-fault, KPIs beyond bay status.

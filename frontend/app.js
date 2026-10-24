@@ -62,32 +62,73 @@ function showTab(name) {
 window.showTab = showTab;
 
 // ---------- map + GoingElectric
-// ponytail: sample stations only. GoingElectric terms want the device to fetch directly with our key;
-// add the live call here once the key and the visible-key question are answered [GAP C8].
+// The browser fetches GoingElectric directly with the key from /api/config (terms: device fetches, no backend copy).
+// No key: sample stations. Our test bay is not in GoingElectric, so its pin always comes from the sample [GAP C8 Q4].
+const GE = "https://api.goingelectric.de/chargepoints/";
+const GE_MIN_ZOOM = 12; // ponytail: no server clustering; below this zoom the box can exceed 500 stations
 const pinIcon = () => L.divIcon({
   className: "",
   html: `<div style="width:34px;height:34px;border-radius:50%;background:#C8E847;border:3px solid #0F1419;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;box-shadow:0 0 0 6px rgba(200,232,71,.4)">⚡</div>`,
   iconSize: [34, 34], iconAnchor: [17, 17],
 });
+// Our bays link to a station by geId; until the bays carry one, the sample's reservable station holds them [GAP C8 Q4]
+const isOurs = (s) => bays.some((b) => b.geId === s.ge_id) || (s.reservable && !bays.some((b) => b.geId != null));
+
+function addPin(layer, s) {
+  const ours = isOurs(s);
+  const maxp = Math.max(0, ...s.chargepoints.map((p) => p.power));
+  const m = ours
+    ? L.marker([s.coordinates.lat, s.coordinates.lng], { icon: pinIcon(), zIndexOffset: 1000 })
+    : L.circleMarker([s.coordinates.lat, s.coordinates.lng], { radius: 8, color: "#F5F4F1", weight: 2, fillColor: maxp >= 50 ? "#0F1419" : "#5A1DF0", fillOpacity: 1 });
+  m.addTo(layer).on("click", () => showDetail(s, ours));
+}
+
+/** All stations in the box; follows `startkey` pages (max 500 per page). */
+async function geBox(key, b) {
+  const params = new URLSearchParams({ key, sw_lat: b.getSouth(), sw_lng: b.getWest(), ne_lat: b.getNorth(), ne_lng: b.getEast() });
+  const out = [];
+  for (let page = 0; page < 4; page++) { // ponytail: 2000-station cap so a bad box cannot hammer the API
+    const j = await (await fetch(GE + "?" + params)).json();
+    if (j.status !== "ok") throw new Error(j.status);
+    out.push(...j.chargelocations);
+    if (j.startkey == null) break;
+    params.set("startkey", j.startkey);
+  }
+  return out;
+}
 
 async function initMap() {
-  const data = await (await fetch("/static/sample_chargepoints.json")).json();
-  $("#sample").textContent = t("map.sample");
-  const locs = data.chargelocations;
-  // Our bays link to a station by geId; until the bays carry one, the sample's reservable station holds them [GAP C8 Q4]
-  const isOurs = (s) => bays.some((b) => b.geId === s.ge_id) || (s.reservable && !bays.some((b) => b.geId != null));
+  const [sample, cfg] = await Promise.all([
+    fetch("/static/sample_chargepoints.json").then((r) => r.json()),
+    api("/api/config").catch(() => ({})),
+  ]);
+  const locs = sample.chargelocations;
   station = locs.find(isOurs) || locs[0];
   map = L.map("map", { zoomControl: false }).setView([station.coordinates.lat, station.coordinates.lng], 14);
   L.control.zoom({ position: "topright" }).addTo(map);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", { attribution: "© OpenStreetMap · © CARTO", maxZoom: 19 }).addTo(map);
-  locs.forEach((s) => {
-    const ours = isOurs(s);
-    const maxp = Math.max(...s.chargepoints.map((p) => p.power));
-    const m = ours
-      ? L.marker([s.coordinates.lat, s.coordinates.lng], { icon: pinIcon(), zIndexOffset: 1000 })
-      : L.circleMarker([s.coordinates.lat, s.coordinates.lng], { radius: 8, color: "#F5F4F1", weight: 2, fillColor: maxp >= 50 ? "#0F1419" : "#5A1DF0", fillOpacity: 1 });
-    m.addTo(map).on("click", () => showDetail(s, ours));
-  });
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "© OpenStreetMap contributors", maxZoom: 19 }).addTo(map);
+  const key = cfg.goingelectricKey;
+  if (!key) {
+    $("#sample").textContent = t("map.sample");
+    locs.forEach((s) => addPin(map, s));
+    return;
+  }
+  locs.filter((s) => s.reservable).forEach((s) => addPin(map, s));
+  const live = L.layerGroup().addTo(map);
+  let seq = 0, timer;
+  const load = async () => {
+    const my = ++seq;
+    if (map.getZoom() < GE_MIN_ZOOM) { live.clearLayers(); $("#sample").textContent = t("map.zoomIn"); return; }
+    try {
+      const found = await geBox(key, map.getBounds());
+      if (my !== seq) return; // a newer move already started
+      live.clearLayers();
+      found.forEach((s) => addPin(live, s));
+      $("#sample").textContent = "";
+    } catch { if (my === seq) $("#sample").textContent = t("map.liveError"); }
+  };
+  map.on("moveend", () => { clearTimeout(timer); timer = setTimeout(load, 400); }); // debounce: terms ask not to load the API unnecessarily
+  load();
 }
 
 const BAY_STATUS = { free: ["bay.free", "free"], reserved: ["bay.reserved", "warn"], occupied: ["bay.occupied", "warn"], unverified: ["bay.unverified", "warn"], out_of_service: ["bay.outOfService", "warn"] };
