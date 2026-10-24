@@ -74,6 +74,9 @@ document.getElementById("cancel").onclick = async () => {
 
 function local(ts) { return new Date(ts).toLocaleTimeString(); }
 
+// Event payloads carry text from the lock service (plates, errors): escape before innerHTML
+function esc(v) { return String(v).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`); }
+
 async function refresh() {
   try {
     const [bay, mine, events] = await Promise.all([
@@ -94,7 +97,7 @@ async function refresh() {
       const armMove = e.kind === "hardware_event" && e.payload.event === "arm" && e.payload.status === "moving";
       const cls = e.kind === "adapter_call" ? "ours" : armMove && !ourCalls.some(c => t - c >= 0 && t - c <= 10000) ? "other" : "";
       const label = e.kind === "hardware_event" ? `lock: ${e.payload.event} ${e.payload.status ?? (e.payload.occupied ?? e.payload.plate ?? "")}` : e.kind;
-      return `<tr class="${cls}"><td>${local(e.ts)}</td><td>${label}</td><td><code>${JSON.stringify(e.payload)}</code></td></tr>`;
+      return `<tr class="${cls}"><td>${esc(local(e.ts))}</td><td>${esc(label)}</td><td><code>${esc(JSON.stringify(e.payload))}</code></td></tr>`;
     }).join("");
   } catch (e) { say(e.message); }
 }

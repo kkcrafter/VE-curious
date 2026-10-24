@@ -32,3 +32,9 @@ def test_operator_routes_need_token_when_set(monkeypatch):
         monkeypatch.setattr(config, "OPERATOR_TOKEN", "s3cret")
         assert c.get("/api/operator/events").status_code == 401
         assert c.get("/api/operator/events", headers={"X-Operator-Token": "s3cret"}).status_code == 200
+
+
+def test_operator_events_limit_is_bounded():
+    with TestClient(app) as c:
+        assert c.get("/api/operator/events?limit=-1").status_code == 400
+        assert c.get("/api/operator/events?limit=501").status_code == 400
