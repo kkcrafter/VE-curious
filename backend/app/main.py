@@ -2,6 +2,7 @@
 
 import hmac
 import json
+import secrets
 import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -76,12 +77,15 @@ def bay_json(b):
     return {"id": b["id"], "geId": b["ge_id"], "name": b["name"], "status": status, "lastSeenAt": b["last_seen_at"]}
 
 
-# ---- auth placeholder until #5 (login decision) ----
+# ---- auth: email + password, opaque session token (prototype) ----
+# ponytail: sessions never expire and logins are not rate-limited; add both before any public deploy
 
-def current_driver(x_driver_id: str | None = Header(None)):
-    if not x_driver_id or not db.one("SELECT id FROM drivers WHERE id = ?", x_driver_id):
-        raise ApiError(401, "unauthorized", "Missing or unknown X-Driver-Id")
-    return x_driver_id
+def current_driver(authorization: str | None = Header(None)):
+    token = (authorization or "").removeprefix("Bearer ")
+    s = db.one("SELECT driver_id FROM sessions WHERE token = ?", token)
+    if not s:
+        raise ApiError(401, "unauthorized", "Missing or unknown session token")
+    return s["driver_id"]
 
 
 def own_reservation(reservation_id: str, driver: str = Depends(current_driver)):
@@ -99,6 +103,35 @@ def get_bay(bay_id):
 
 
 # ---- driver routes ----
+
+class LoginIn(BaseModel):
+    email: str
+    password: str
+
+
+def driver_json(d):
+    return {"id": d["id"], "name": d["name"], "plate": d["plate"], "email": d["email"]}
+
+
+@api.post("/login")
+def login(body: LoginIn):
+    d = db.one("SELECT * FROM drivers WHERE email = ?", body.email.strip().lower())
+    if not d or not db.check_password(body.password, d["password_hash"]):
+        raise ApiError(401, "bad_credentials", "Wrong email or password")
+    token = secrets.token_urlsafe(32)
+    db.execute("INSERT INTO sessions VALUES (?, ?, ?)", token, d["id"], db.iso(db.now()))
+    return {"token": token, "driver": driver_json(d)}
+
+
+@api.post("/logout", status_code=204)
+def logout(authorization: str | None = Header(None)):
+    db.execute("DELETE FROM sessions WHERE token = ?", (authorization or "").removeprefix("Bearer "))
+
+
+@api.get("/me")
+def me(driver: str = Depends(current_driver)):
+    return driver_json(db.one("SELECT * FROM drivers WHERE id = ?", driver))
+
 
 class ReservationIn(BaseModel):
     bayId: str

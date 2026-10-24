@@ -14,7 +14,7 @@ The backend is the source of truth. API contract: [`docs/design/backend-outline.
 
 ## How it follows the backend
 
-- Driver: `X-Driver-Id` header from the demo driver picker (`d1`, `d2` seeded by the backend).
+- Driver: email + password login (`POST /api/login`) on the booking tab; token in `localStorage`, sent as `Authorization: Bearer`. A 401 drops back to the login form. Map stays public.
 - Buttons on the booking screen come from `allowedActions`; mapping to routes is `ACTIONS` in `app.js`. New backend actions (`confirm_arrival`, `deny_arrival`, `report_fault`) show up by themselves once the backend allows them.
 - Countdown: `graceDeadline − serverTime`.
 - Map stations: the browser calls GoingElectric directly (terms: device fetches, no backend copy) with the key from `GET /api/config` (`GOINGELECTRIC_API_KEY` in `backend/.env`). Map-box search, debounced, only at zoom ≥ 12. No key: sample data.

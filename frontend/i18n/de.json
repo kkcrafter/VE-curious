@@ -31,7 +31,6 @@
   "bay.free": "Jetzt frei",
   "form.eyebrow": "Reservieren",
   "form.title": "Dein Platz,<br>für dich frei.",
-  "form.name": "Demo-Fahrer:in",
   "form.plate": "Kennzeichen (leer = Profil-Kennzeichen)",
   "form.reserve": "Platz reservieren →",
   "err.prefix": "Reservierung nicht möglich: ",
@@ -95,5 +94,11 @@
   "err.driver_has_active": "Du hast bereits eine aktive Reservierung.",
   "err.hardware_error": "Der Platz antwortet nicht. Nochmal versuchen oder anderen Platz wählen.",
   "err.invalid_action": "Gerade nicht möglich.",
-  "err.unauthorized": "Nicht angemeldet."
+  "err.unauthorized": "Nicht angemeldet.",
+  "login.email": "E-Mail",
+  "login.password": "Passwort",
+  "login.submit": "Anmelden →",
+  "login.hint": "Prototyp-Konten: driver1@demo.test oder driver2@demo.test, Passwort demo1234",
+  "login.logout": "Abmelden",
+  "err.bad_credentials": "E-Mail oder Passwort falsch."
 }

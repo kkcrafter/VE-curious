@@ -4,9 +4,9 @@ from fastapi.testclient import TestClient
 from app import core, db
 from app.main import app
 
-D1 = {"X-Driver-Id": "d1"}
-D2 = {"X-Driver-Id": "d2"}
-LOCK = "lock-0002"  # bay-1
+D1 = {"Authorization": "Bearer t1"}
+D2 = {"Authorization": "Bearer t2"}
+LOCK = "lock-0001"  # bay-1
 
 
 @pytest.fixture
@@ -15,6 +15,8 @@ def c():
         db.reset()
         core.adapter.reset()
         core.tick()  # no background poll in tests; unknown last_seen would show "unverified"
+        for token, driver in (("t1", "d1"), ("t2", "d2")):  # skip /login (scrypt) in every test
+            db.execute("INSERT INTO sessions VALUES (?, ?, ?)", token, driver, db.iso(db.now()))
         yield client
 
 
@@ -86,6 +88,16 @@ def test_hardware_failure_gives_failed(c):
 
 def test_auth_and_bad_input(c):
     assert reserve(c, headers={}).json()["error"]["code"] == "unauthorized"
+    assert reserve(c, headers={"Authorization": "Bearer nope"}).status_code == 401
+    bad = c.post("/api/login", json={"email": "driver1@demo.test", "password": "wrong"})
+    assert bad.status_code == 401 and bad.json()["error"]["code"] == "bad_credentials"
+    assert c.post("/api/login", json={"email": "nobody@demo.test", "password": "demo1234"}).status_code == 401
+    ok = c.post("/api/login", json={"email": " Driver1@demo.test ", "password": "demo1234"}).json()
+    me = {"Authorization": "Bearer " + ok["token"]}
+    assert ok["driver"]["plate"] == "M-AB 1234" and c.get("/api/me", headers=me).json()["id"] == "d1"
+    assert reserve(c, headers=me).status_code == 201
+    c.post("/api/logout", headers=me)
+    assert c.get("/api/me", headers=me).status_code == 401
     assert c.post("/api/reservations", json={}, headers=D1).status_code == 400
 
 
