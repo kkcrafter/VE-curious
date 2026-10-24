@@ -24,5 +24,6 @@ uv run pytest -q
 | `app/config.py` | Settings from env |
 | `app/db.py` | SQLite schema, seed (bays from `LOCK_IDS`, demo drivers), event log writer |
 | `app/machine.py` | State machine, pure |
+| `app/adapters.py` | Hardware adapters: `MockAdapter` (and Ecurious) behind one interface |
 | `app/core.py` | Only place that changes reservation state or calls hardware |
 | `app/main.py` | HTTP routes |
