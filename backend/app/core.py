@@ -54,7 +54,9 @@ def apply(reservation_id, event, **fields):
 
 def create_reservation(driver_id, bay_id, plate, idempotency_key=None):
     with db.lock:
-        if idempotency_key and (r := db.one("SELECT * FROM reservations WHERE idempotency_key = ?", idempotency_key)):
+        if idempotency_key and (r := db.one(
+            "SELECT * FROM reservations WHERE driver_id = ? AND idempotency_key = ?", driver_id, idempotency_key
+        )):
             return r
         bay = db.one("SELECT * FROM bays WHERE id = ?", bay_id)
         if not bay:

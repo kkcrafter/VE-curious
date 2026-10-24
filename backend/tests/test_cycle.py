@@ -61,6 +61,8 @@ def test_conflicts_and_idempotency(c):
     first = c.post("/api/reservations", json={"bayId": "bay-1"}, headers={**D1, "Idempotency-Key": "k1"}).json()
     again = c.post("/api/reservations", json={"bayId": "bay-1"}, headers={**D1, "Idempotency-Key": "k1"}).json()
     assert again["id"] == first["id"]
+    other = c.post("/api/reservations", json={"bayId": "bay-1"}, headers={**D2, "Idempotency-Key": "k1"}).json()
+    assert other["error"]["code"] == "bay_taken"  # same key from another driver never returns d1's reservation
     assert reserve(c, headers=D2).json()["error"]["code"] == "bay_taken"
     assert reserve(c, bay="bay-2").json()["error"]["code"] == "driver_has_active"
     assert reserve(c, headers=D2, bay="bay-2").status_code == 201
