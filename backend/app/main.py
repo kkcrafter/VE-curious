@@ -10,7 +10,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from . import config, core, db, machine
+from . import config, core, db, hardware_events, machine
 from .core import ApiError
 
 
@@ -19,6 +19,8 @@ async def lifespan(app):
     db.init()
     if config.POLL_SECONDS:
         threading.Thread(target=core.run_ticker, daemon=True).start()
+    if config.ADAPTER == "ecurious":
+        threading.Thread(target=hardware_events.run, daemon=True).start()
     yield
 
 

@@ -2,13 +2,16 @@
 
 import secrets
 import sqlite3
+import threading
 import time
 from datetime import timedelta
 
 from . import config, db, machine
-from .adapters import HardwareError, MockAdapter
+from .adapters import EcuriousAdapter, HardwareError, MockAdapter
 
-adapter = MockAdapter()  # Ecurious adapter comes with #18
+adapter = EcuriousAdapter() if config.ADAPTER == "ecurious" else MockAdapter()
+stream_connected = threading.Event()  # set by hardware_events while the SSE stream is up
+_last_plate = {}  # lock_id -> timestamp of the latest plate seen by polling
 
 
 class ApiError(Exception):
@@ -112,7 +115,7 @@ def on_hardware_event(ev):
 
 
 def tick():
-    """Poll every bay: refresh last seen and presence."""
+    """Poll every bay: refresh last seen and presence, and catch plates/presence missed while SSE was down."""
     for bay in db.rows("SELECT * FROM bays"):
         try:
             s = adapter.status(bay["lock_id"])
@@ -122,6 +125,12 @@ def tick():
         db.update("bays", bay["id"], last_seen_at=db.iso(seen))
         if s["occupied"] != bool(bay["occupied"]):
             on_hardware_event({"kind": "presence", "lock_id": bay["lock_id"], "occupied": s["occupied"]})
+        if not stream_connected.is_set() and (latest := adapter.latest_plate(bay["lock_id"])):
+            plate, ts = latest
+            known = _last_plate.get(bay["lock_id"])
+            _last_plate[bay["lock_id"]] = ts
+            if known and ts != known:  # first poll is only a baseline, not an arrival
+                on_hardware_event({"kind": "plate", "lock_id": bay["lock_id"], "plate": plate})
 
 
 def run_ticker():
