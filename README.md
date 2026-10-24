@@ -1,4 +1,4 @@
-# Ve-curious – Ecurious Hackathon (Watt the Hack)
+# VE-curious – Ecurious Hackathon (Watt the Hack)
 
 Challenge: integrate a smart reservation system for public EV charging into a charging app.
 
