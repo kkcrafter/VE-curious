@@ -22,3 +22,27 @@ def test_event_log_writer():
     db.log("test", "r_1", "bay-1", n=1)
     row = db.one("SELECT * FROM event_log ORDER BY id DESC")
     assert (row["kind"], row["reservation_id"], json.loads(row["payload"])) == ("test", "r_1", {"n": 1})
+
+
+def test_operator_routes_need_token_when_set(monkeypatch):
+    from app import config
+
+    with TestClient(app) as c:
+        assert c.get("/api/operator/events").status_code == 200  # no token configured: local use
+        monkeypatch.setattr(config, "OPERATOR_TOKEN", "s3cret")
+        assert c.get("/api/operator/events").status_code == 401
+        assert c.get("/api/operator/events", headers={"X-Operator-Token": "s3cret"}).status_code == 200
+
+
+def test_operator_events_limit_is_bounded():
+    with TestClient(app) as c:
+        assert c.get("/api/operator/events?limit=-1").status_code == 400
+        assert c.get("/api/operator/events?limit=501").status_code == 400
+
+
+def test_client_config_hands_out_goingelectric_key(monkeypatch):
+    from app import config
+
+    monkeypatch.setattr(config, "GOINGELECTRIC_API_KEY", "k1")
+    with TestClient(app) as c:
+        assert c.get("/api/config").json() == {"goingelectricKey": "k1"}

@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0F1419">
+<title>Reserve a bay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<!-- Static texts use data-i18n="key" (innerHTML). Translations: /static/i18n/en.json, de.json -->
+<header class="top">
+  <div class="logo">RESERVE<small data-i18n="brand.tag"></small></div>
+  <div class="topright">
+    <div class="pill-live" id="hw"><i></i><span id="hw-text"></span></div>
+    <button class="lang-btn" id="lang" aria-label="Language">DE</button>
+  </div>
+</header>
+
+<main>
+  <!-- MAP -->
+  <section id="tab-map">
+    <div class="mapwrap">
+      <div id="map"></div>
+      <div class="legend">
+        <span><i style="background:#C8E847;border:2px solid #0F1419"></i><b data-i18n="legend.reservable"></b></span>
+        <span><i style="background:#0F1419"></i><b data-i18n="legend.fast"></b></span>
+        <span><i style="background:#5A1DF0"></i><b data-i18n="legend.ac"></b></span>
+      </div>
+    </div>
+    <div id="detail" class="sheet hidden"></div>
+    <div id="map-hint" class="sheet">
+      <span class="eyebrow" data-i18n="map.eyebrow"></span>
+      <h3 style="margin-top:10px" data-i18n="map.title"></h3>
+      <p class="muted" style="margin-top:10px" data-i18n="map.text"></p>
+    </div>
+    <div class="src"><span data-i18n="map.source"></span> <span id="sample"></span></div>
+  </section>
+
+  <!-- RESERVATION -->
+  <section id="tab-res" class="hidden">
+    <div id="res-empty">
+      <div class="sheet"><span class="eyebrow" data-i18n="form.eyebrow"></span><h3 style="margin-top:10px;font-size:44px" data-i18n="form.title"></h3></div>
+      <div class="card">
+        <!-- ponytail: ids match the backend's seeded drivers (db.DRIVERS) until the login decision (#5) -->
+        <label style="margin-top:0"><span data-i18n="form.name"></span><select id="f-driver"><option value="d1">Demo Driver 1 · M-AB 1234</option><option value="d2">Demo Driver 2 · B-CD 5678</option></select></label>
+        <label><span data-i18n="form.plate"></span><input id="f-plate" class="platebox"></label>
+        <div class="row"><button class="btn btn-primary btn-block" id="btn-reserve" data-i18n="form.reserve"></button></div>
+        <p id="res-err" class="err"></p>
+      </div>
+    </div>
+    <div id="res-view" class="hidden"></div>
+  </section>
+
+  <!-- OPERATOR -->
+  <section id="tab-op" class="hidden"></section>
+
+  <aside class="dev" id="dev">
+    <span class="eyebrow" data-i18n="dev.title"></span>
+    <div class="row">
+      <button class="btn" id="d-ok" data-i18n="dev.ok"></button>
+      <button class="btn" id="d-other" data-i18n="dev.other"></button>
+      <button class="btn" id="d-leave" data-i18n="dev.leave"></button>
+      <button class="btn btn-danger" id="d-reset" data-i18n="dev.reset"></button>
+    </div>
+  </aside>
+</main>
+
+<nav class="tabbar">
+  <button data-tab="map" class="on" data-i18n="nav.map"></button>
+  <button data-tab="res"><span data-i18n="nav.booking"></span><span class="dot" id="res-dot"></span></button>
+  <button data-tab="op" data-i18n="nav.operator"></button>
+</nav>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>
