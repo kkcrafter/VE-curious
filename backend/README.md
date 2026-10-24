@@ -9,6 +9,7 @@ cp .env.example .env   # fill in ECURIOUS_API_KEY; ADAPTER=mock needs no key
 uv run --env-file .env uvicorn app.main:app --reload --port 3000
 ```
 
+App (served from `../frontend`): http://localhost:3000/
 API docs (OpenAPI): http://localhost:3000/docs
 
 ## Test
