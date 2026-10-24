@@ -23,6 +23,34 @@ All screens step by step: [happy flow](docs/design/happy-flow.md).
 
 Not built yet (no-show, blocked bay, plate mismatch, fees charged, hosting): [to-do](docs/todo.md).
 
+## Repo structure
+
+One backend process serves both the API and the frontend files. No build step.
+
+```
+backend/                  FastAPI + SQLite (details: backend/README.md)
+  app/
+    main.py               HTTP routes: driver, operator, dev controls; serves frontend/
+    core.py               the only place that changes reservation state or calls hardware
+    machine.py            state machine: (state, event) -> next state, pure
+    adapters.py           hardware adapters: MockAdapter and EcuriousAdapter, one interface
+    hardware_events.py    Ecurious event stream (SSE) -> core; reconnects, polling fallback
+    db.py                 SQLite schema, seed bays and demo drivers, password hashing, event log
+    config.py             settings from env (.env.example lists them)
+    test.html             hardware test page at /test
+  tests/                  pytest: full cycle, slots, dev controls, Ecurious adapter
+frontend/                 plain HTML / CSS / JS (details: frontend/README.md)
+  index.html, style.css   page skeleton: Map, Booking, Operator tabs
+  app.js                  UI logic and every backend call
+  i18n/en.json, de.json   all visible text; check_i18n.py checks keys match and none are missing
+  sample_chargepoints.json  our test bay pin, and map data when no GoingElectric key is set
+docs/                     brief, plans, design (see Docs map below)
+  design/                 state machine, API contract, UX, diagrams, happy-flow screens
+  templates/              decision log, declaration log, pitch outline
+```
+
+How a booking moves through the code: `app.js` calls a route in `main.py` → `core.py` asks `machine.py` for the next state, saves it in SQLite, writes the event log and calls the adapter → the adapter talks to the lock (or the mock). Plate reads and car departures come back the other way, through `hardware_events.py` (or `/api/dev/*` on mock) into `core.py`. The frontend only shows the buttons the backend lists in `allowedActions`.
+
 ## Docs map
 
 - `docs/challenge-brief.pdf` – original brief from Ecurious
