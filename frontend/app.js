@@ -138,7 +138,7 @@ async function showDetail(s, ours) {
   $("#map-hint").classList.add("hidden");
   const d = $("#detail");
   d.classList.remove("hidden");
-  const plugs = s.chargepoints.map((p) => `<span class="chip">${p.count}× ${esc(p.type)} · ${p.power} kW</span>`).join("");
+  const plugs = s.chargepoints.map((p) => `<span class="chip">${esc(p.count)}× ${esc(p.type)} · ${esc(p.power)} kW</span>`).join("");
   const fault = s.fault_report ? `<span class="chip bad">${t("detail.fault")}</span>` : `<span class="chip v">${t("detail.noFault")}</span>`;
   let bay = `<p class="legalnote">${t("detail.notReservable")}</p>`;
   if (ours) {
