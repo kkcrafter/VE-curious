@@ -39,9 +39,10 @@ CREATE TABLE IF NOT EXISTS reservations (
   grace_deadline TEXT,
   reminder_at TEXT,
   mismatch_deadline TEXT,
-  idempotency_key TEXT UNIQUE,
+  idempotency_key TEXT,
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  UNIQUE (driver_id, idempotency_key)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS one_active_per_bay ON reservations(bay_id) WHERE {_active};
 CREATE UNIQUE INDEX IF NOT EXISTS one_active_per_driver ON reservations(driver_id) WHERE {_active};
