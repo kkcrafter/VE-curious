@@ -38,3 +38,11 @@ def test_operator_events_limit_is_bounded():
     with TestClient(app) as c:
         assert c.get("/api/operator/events?limit=-1").status_code == 400
         assert c.get("/api/operator/events?limit=501").status_code == 400
+
+
+def test_client_config_hands_out_goingelectric_key(monkeypatch):
+    from app import config
+
+    monkeypatch.setattr(config, "GOINGELECTRIC_API_KEY", "k1")
+    with TestClient(app) as c:
+        assert c.get("/api/config").json() == {"goingelectricKey": "k1"}

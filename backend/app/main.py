@@ -149,6 +149,13 @@ def charging(body: ChargingIn, r=Depends(own_reservation)):
     return reservation_json(core.apply(r["id"], f"{body.action}_charging"))
 
 
+@api.get("/config")
+def client_config():
+    # ponytail: key is visible to any browser that loads the page; GoingElectric terms want the device
+    # to fetch directly, so we never proxy or cache their data. Visible-key question: [GAP C8 Q3]
+    return {"goingelectricKey": config.GOINGELECTRIC_API_KEY}
+
+
 # ---- operator (rest of #26 later) ----
 
 def require_operator(x_operator_token: str | None = Header(None)):

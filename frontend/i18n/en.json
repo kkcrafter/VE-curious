@@ -15,6 +15,8 @@
   "map.text": "The lime pin is a smart bay: the barrier keeps it free until you arrive.",
   "map.source": "Data: GoingElectric.de",
   "map.sample": "· sample data",
+  "map.zoomIn": "· zoom in to see chargers",
+  "map.liveError": "· live data unavailable",
   "detail.defaultNetwork": "Charge point",
   "detail.noFault": "No fault reported",
   "detail.fault": "Fault reported",
