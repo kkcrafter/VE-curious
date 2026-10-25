@@ -1,12 +1,28 @@
 # Ve-curious – Ecurious Hackathon (Watt the Hack)
 
-Challenge: integrate a smart reservation system for public EV charging into a charging app.
+Book a public EV charging bay in an app; a barrier keeps it free until your car arrives. Built in one day at the Watt the Hack hackathon (24 October 2026) for the Ecurious challenge, where it ranked in the top 3.
 
 A driver finds a charger on the map, books the bay now or for a time slot, and a barrier keeps the bay free until they arrive. A camera reads the plate, the barrier goes down, the car charges, and the bay is released when charging ends or the car leaves. The backend keeps one reservation state that the app, the hardware and the operator all read; it talks to the Ecurious lock and camera through an adapter, with a mock adapter so the whole cycle runs on a laptop.
 
 <img src="docs/design/happy-flow/01-map.jpg" width="160" alt="Map with the reservable smart bay"> <img src="docs/design/happy-flow/09-bay-held.jpg" width="160" alt="Bay held, grace countdown"> <img src="docs/design/happy-flow/11-charging.jpg" width="160" alt="Charging: battery %, kWh, cost"> <img src="docs/design/happy-flow/13-session-summary.jpg" width="160" alt="Session summary with fee and energy cost">
 
 All screens step by step: [happy flow](docs/design/happy-flow.md).
+
+## Run it
+
+Needs Python and [uv](https://docs.astral.sh/uv/). Runs fully on a laptop with simulated hardware; no keys needed.
+
+```bash
+cd backend
+cp .env.example .env
+uv run --env-file .env uvicorn app.main:app --port 3000
+```
+
+Open http://localhost:3000/ and log in with `driver1@demo.test` / `demo1234`. The demo panel simulates the camera reading the plate and the car leaving. Details and tests: [backend/README.md](backend/README.md).
+
+## Status
+
+A working prototype, not a product. Real: the Ecurious lock and camera through their API, GoingElectric map data (needs a key). Simulated: the charger (kWh, battery %, cost) and all prices.
 
 ## Key features
 
