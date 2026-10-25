@@ -1,8 +1,10 @@
-# Ve-curious – Ecurious Hackathon (Watt the Hack)
+# VE-curious – Ecurious Hackathon (Watt the Hack)
 
-Book a public EV charging bay in an app; a barrier keeps it free until your car arrives. Built in one day at the Watt the Hack hackathon (24 October 2026) for the Ecurious challenge, where it ranked in the top 3.
+A reservation app for public EV charging bays: a smart parking lock holds the bay until the driver's car arrives.
 
-A driver finds a charger on the map, books the bay now or for a time slot, and a barrier keeps the bay free until they arrive. A camera reads the plate, the barrier goes down, the car charges, and the bay is released when charging ends or the car leaves. The backend keeps one reservation state that the app, the hardware and the operator all read; it talks to the Ecurious lock and camera through an adapter, with a mock adapter so the whole cycle runs on a laptop.
+Made for the Ecurious challenge at the Watt the Hack hackathon on 24 October 2026, part of Munich Climate Week.
+
+**How it works:** find a charger on the map → book the bay → a barrier holds it → the camera reads your plate and lowers the barrier → charge → the bay is released.
 
 <img src="docs/design/happy-flow/01-map.jpg" width="160" alt="Map with the reservable smart bay"> <img src="docs/design/happy-flow/09-bay-held.jpg" width="160" alt="Bay held, grace countdown"> <img src="docs/design/happy-flow/11-charging.jpg" width="160" alt="Charging: battery %, kWh, cost"> <img src="docs/design/happy-flow/13-session-summary.jpg" width="160" alt="Session summary with fee and energy cost">
 
