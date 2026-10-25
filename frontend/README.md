@@ -2,7 +2,7 @@
 
 Plain HTML / CSS / JS, no build step. The backend serves this folder: `/` is `index.html`, `/static/*` is this folder. Run the backend (`../backend/README.md`) and open http://localhost:3000/.
 
-The backend is the source of truth. API contract: [`docs/design/backend-outline.md`](../docs/design/backend-outline.md) §3. Screens: [`docs/design/UX.md`](../docs/design/UX.md).
+The backend is the source of truth. API contract: [`docs/design/backend-outline.md`](../docs/design/backend-outline.md), section 3. Screens: [`docs/design/UX.md`](../docs/design/UX.md).
 
 | File | Job |
 |---|---|
@@ -23,4 +23,4 @@ The backend is the source of truth. API contract: [`docs/design/backend-outline.
 
 ## Hidden until the backend has it
 
-Deposit and fee box (ledger, B4), booking code (B6), reminder banner, no-show (sweep), fault report, operator clear-fault, KPIs beyond bay status.
+Deposit and fee box (needs a payment ledger), booking code for unreadable plates, reminder banner, no-show (sweep), fault report, operator clear-fault, KPIs beyond bay status.
